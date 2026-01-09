@@ -22,6 +22,24 @@ export default function Debugger() {
           Time: <span className="text-blue-300">{state.timeRemaining}hrs</span>
         </p>
         <p>
+          Education:{' '}
+          <span className="text-purple-300">{state.educationLevel}</span>
+        </p>
+        <p>
+          Status:{' '}
+          <span
+            className={
+              state.gameStatus === 'won'
+                ? 'text-yellow-400'
+                : state.gameStatus === 'lost'
+                  ? 'text-red-400'
+                  : 'text-green-400'
+            }
+          >
+            {state.gameStatus}
+          </span>
+        </p>
+        <p>
           Hunger:{' '}
           {state.isStarving ? (
             <span className="text-red-500">STARVING</span>
@@ -43,7 +61,7 @@ export default function Debugger() {
           Force End Turn
         </button>
         <button
-          onClick={() => state.work(4)}
+          onClick={() => state.work('janitor', 4)}
           className="rounded bg-blue-600 px-2 py-1 hover:bg-blue-700"
           disabled={state.currentLocationId !== 'burger'}
         >

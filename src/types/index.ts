@@ -7,6 +7,8 @@ export interface Location {
   description: string;
 }
 
+export type GameStatus = 'playing' | 'won' | 'lost';
+
 export interface Job {
   id: string;
   title: string;
@@ -16,6 +18,10 @@ export interface Job {
 }
 
 export interface GameState {
+  // Status
+  gameStatus: GameStatus;
+  lastEvent: string | null; // To show "Rent Paid!" messages
+
   // Player Stats
   money: number;
   currentWeek: number;

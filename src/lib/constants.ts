@@ -4,6 +4,9 @@ export const MAX_TIME = 12; // Hours per week
 export const TRAVEL_COST = 1; // Hours to move between locations
 export const FOOD_COST = 15;
 export const RENT_COST = 100;
+export const TUITION_COST = 100; // Cost per class
+export const WIN_MONEY = 500; // Cash needed to win
+export const RENT_INTERVAL = 4; // Weeks between rent payments
 
 export const LOCATIONS: Location[] = [
   {
