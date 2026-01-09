@@ -6,12 +6,7 @@ const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     <div
       ref={ref}
       className={cn(
-        // Industrial Skeuomorphic Look:
-        // - Thick border
-        // - Subtle inner bevel (ring-inset)
-        // - Flat background
-        'border-base-700 bg-base-800 text-base-100 rounded-sm border-2 shadow-xl',
-        'ring-1 ring-white/5',
+        'rounded-xl border border-slate-700 bg-slate-800/50 text-slate-100 shadow-sm',
         className
       )}
       {...props}
