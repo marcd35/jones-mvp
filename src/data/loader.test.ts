@@ -142,6 +142,47 @@ describe('validatePack', () => {
     );
   });
 
+  it('validates the education Location, course identity, levels and class costs', () => {
+    const course = defaultPack.education.courses[0];
+    const problems = validatePack({
+      ...defaultPack,
+      education: {
+        ...defaultPack.education,
+        locationId: 'bank',
+        courses: [
+          {
+            ...course,
+            id: '',
+            name: ' ',
+            path: 'business',
+            level: 3,
+            classesRequired: 0,
+            classTimeHours: 13,
+            dataBasis: 'unknown',
+          } as unknown as typeof course,
+        ],
+      },
+    });
+    expect(problems).toContain(
+      'Education courses need an open education Location "bank".',
+    );
+    expect(problems).toContain('Education course ids must not be empty.');
+    expect(problems).toContain('Course "" needs a name.');
+    expect(problems).toContain('Course "" needs a technical or college path.');
+    expect(problems).toContain(
+      'Course "" needs a v1 education level of 1 or 2.',
+    );
+    expect(problems).toContain(
+      'Course "" needs a whole class count of at least 1.',
+    );
+    expect(problems).toContain(
+      'Course "" needs class Time above 0 and no more than 12 hours.',
+    );
+    expect(problems).toContain(
+      'Course "" needs an observed or approved-default data basis.',
+    );
+  });
+
   it.each([
     ['wage', -1, 'Job "cook" needs a wage of at least 0.'],
     ['wage', NaN, 'Job "cook" needs a wage of at least 0.'],

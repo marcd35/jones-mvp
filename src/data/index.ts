@@ -1,5 +1,6 @@
 import type { DataPack } from '@/types';
 import { CLOTHING } from './clothing';
+import { EDUCATION } from './education';
 import { FOOD } from './food';
 import { HOUSEHOLD_GOODS } from './household-goods';
 import { INFLATION } from './inflation';
@@ -12,6 +13,7 @@ import { WALKING_COSTS } from './walking';
 export const defaultPack: DataPack = {
   locations: LOCATIONS,
   jobs: JOBS,
+  education: EDUCATION,
   layout: LAYOUT,
   walkingCosts: WALKING_COSTS,
   homeLocationId: 'low-cost-housing',

@@ -2,7 +2,6 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
 import { defaultPack } from '@/data';
-import { CLASS_HOURS, TUITION_COST } from '@/lib/constants';
 import { clothesState, meetsClothing, tierOf, weeksLeft } from '@/lib/clothing';
 import { scalePrice } from '@/lib/inflation';
 import { newspaperIssueSchedule } from '@/lib/newspaper';
@@ -21,6 +20,10 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     money,
     timeRemaining,
     educationLevel,
+    educationPath,
+    enrolledCourseId,
+    courseClassesCompleted,
+    completedCourseIds,
     foodWeeks,
     clothes,
     jobId,
@@ -34,6 +37,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const buyHouseholdGood = useGameStore((s) => s.buyHouseholdGood);
   const buyClothes = useGameStore((s) => s.buyClothes);
   const buyNewspaper = useGameStore((s) => s.buyNewspaper);
+  const enrollCourse = useGameStore((s) => s.enrollCourse);
   const attendClass = useGameStore((s) => s.attendClass);
   const payRent = useGameStore((s) => s.payRent);
   const payRentBalance = useGameStore((s) => s.payRentBalance);
@@ -43,8 +47,11 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const priceLevel = useGameStore((s) => s.priceLevel);
   const newspaper = useGameStore((s) => s.newspaper);
   // Shop prices at this Week's hidden level (AC-010).
-  const tuition = scalePrice(TUITION_COST, priceLevel);
-  const { food, clothing, householdGoods } = defaultPack;
+  const { education, food, clothing, householdGoods } = defaultPack;
+  const courseFee = scalePrice(education.enrollmentFee, priceLevel);
+  const enrolledCourse = education.courses.find(
+    (course) => course.id === enrolledCourseId,
+  );
   const myTier = tierOf(clothing, clothes);
   const wornState = clothesState(clothing, clothes);
 
@@ -252,22 +259,97 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
 
         {/* === UNIVERSITY INTERACTION === */}
         {currentLocation.type === 'education' && (
-          <div className="space-y-2">
+          <section aria-label="Education" className="space-y-3">
             <div className="flex justify-between text-sm text-slate-300">
-              <span>Current Level:</span>
-              <span className="font-bold text-white">{educationLevel}</span>
+              <span>Education level:</span>
+              <span className="font-bold text-white">
+                {educationLevel} {educationPath ? `(${educationPath})` : ''}
+              </span>
             </div>
-            <Button
-              onClick={() => {
-                attendClass();
-                onClose();
-              }}
-              className="w-full bg-indigo-600 hover:bg-indigo-700"
-              disabled={money < tuition || timeRemaining < CLASS_HOURS}
-            >
-              Attend Class (-${tuition} / {CLASS_HOURS}hrs)
-            </Button>
-          </div>
+
+            {completedCourseIds.length > 0 && (
+              <div className="space-y-1 text-sm text-slate-300">
+                <h3 className="font-semibold text-white">Completed courses</h3>
+                <ul className="list-inside list-disc">
+                  {completedCourseIds.map((courseId) => {
+                    const course = education.courses.find(
+                      (item) => item.id === courseId,
+                    );
+                    return course ? (
+                      <li key={course.id}>{course.name}</li>
+                    ) : null;
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {enrolledCourse ? (
+              <div className="space-y-2 rounded border border-slate-700 bg-slate-800 p-3">
+                <h3 className="font-semibold text-white">
+                  In progress: {enrolledCourse.name}
+                </h3>
+                <p className="text-sm text-slate-300">
+                  {courseClassesCompleted} of {enrolledCourse.classesRequired}{' '}
+                  classes complete
+                </p>
+                <Button
+                  onClick={attendClass}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  disabled={timeRemaining < enrolledCourse.classTimeHours}
+                >
+                  Attend class ({formatHours(enrolledCourse.classTimeHours)} hr)
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-white">
+                  Courses at Hi-Tech U
+                </h3>
+                {education.courses.map((course) => {
+                  const completed = completedCourseIds.includes(course.id);
+                  const nextLevel = course.level === educationLevel + 1;
+                  const samePath =
+                    educationPath === null || educationPath === course.path;
+                  const canEnroll = !completed && nextLevel && samePath;
+                  const lockedReason = completed
+                    ? 'Completed'
+                    : !samePath
+                      ? `Locked: requires the ${course.path} education path; your current path is ${educationPath}.`
+                      : course.level <= educationLevel
+                        ? `Locked: v1 allows one course at each level; level ${educationLevel} is complete.`
+                        : `Locked: complete an education level ${course.level - 1} course first.`;
+
+                  return (
+                    <div
+                      key={course.id}
+                      className="rounded border border-slate-700 bg-slate-800 p-3"
+                    >
+                      <p className="text-sm font-semibold text-white">
+                        {course.name} — level {course.level} ({course.path})
+                      </p>
+                      {canEnroll ? (
+                        <Button
+                          onClick={() => enrollCourse(course.id)}
+                          className="mt-2 min-h-11 w-full bg-indigo-600 hover:bg-indigo-700"
+                          disabled={
+                            money < courseFee ||
+                            timeRemaining < education.enrollmentTimeHours
+                          }
+                        >
+                          Enroll in {course.name} (${courseFee} /{' '}
+                          {formatHours(education.enrollmentTimeHours)} hr)
+                        </Button>
+                      ) : (
+                        <p className="mt-1 text-xs text-slate-300">
+                          {lockedReason}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         {/* === FOOD (AC-007): any Location whose data sells food === */}

@@ -24,6 +24,27 @@ export type GoalId = 'wealth' | 'happiness' | 'education' | 'career';
 
 export type EducationPath = 'technical' | 'college';
 
+export type EducationDataBasis = 'observed' | 'approved-default';
+
+export interface EducationCourse {
+  id: string;
+  name: string;
+  path: EducationPath;
+  level: 1 | 2;
+  classesRequired: number;
+  classTimeHours: number;
+  dataBasis: EducationDataBasis;
+}
+
+export interface EducationRules {
+  locationId: string;
+  enrollmentFee: number; // Base fee at price level 1.00
+  enrollmentFeeDataBasis: EducationDataBasis;
+  enrollmentTimeHours: number;
+  enrollmentTimeDataBasis: EducationDataBasis;
+  courses: EducationCourse[];
+}
+
 // Goal points spent on each Goal.
 export type GoalPoints = Record<GoalId, number>;
 
@@ -165,6 +186,7 @@ export interface NewspaperRules {
 export interface DataPack {
   locations: Location[];
   jobs: Job[];
+  education: EducationRules;
   layout: BoardLayout;
   walkingCosts: WalkingCostTable;
   homeLocationId: string;
@@ -194,6 +216,9 @@ export interface Player {
   timeRemaining: number; // Hours left this Turn (0-12, may be fractional)
   educationLevel: number;
   educationPath: EducationPath | null;
+  enrolledCourseId: string | null;
+  courseClassesCompleted: number;
+  completedCourseIds: string[];
   // Weeks of food in hand, this Week included: above 0 means this Week is
   // covered. One is used up when the Week ends.
   foodWeeks: number;

@@ -689,6 +689,42 @@ describe('clothing on screen (AC-008)', () => {
     );
   });
 
+  it('shows education courses, scaled enrollment and visible class progress', async () => {
+    act(() =>
+      useGameStore.setState((state) => ({
+        priceLevel: 1.25,
+        players: [
+          { ...state.players[0], locationId: 'hi-tech-u', money: 1000 },
+        ],
+      })),
+    );
+    render(<Home />);
+    await userEvent.click(tileButton('Hi-Tech U'));
+
+    const university = screen.getByRole('dialog', { name: 'Hi-Tech U' });
+    expect(university).toHaveTextContent('Trade School — level 1 (technical)');
+    expect(university).toHaveTextContent('Jr. College — level 1 (college)');
+    expect(university).toHaveTextContent(
+      'Locked: complete an education level 1 course first.',
+    );
+    await userEvent.click(
+      within(university).getByRole('button', {
+        name: 'Enroll in Trade School ($63 / 1 hr)',
+      }),
+    );
+    expect(player().money).toBe(1000 - 63);
+    expect(university).toHaveTextContent('In progress: Trade School');
+    expect(university).toHaveTextContent('0 of 10 classes complete');
+
+    await userEvent.click(
+      within(university).getByRole('button', {
+        name: 'Attend class (1.1 hr)',
+      }),
+    );
+    expect(university).toHaveTextContent('1 of 10 classes complete');
+    expect(player().money).toBe(1000 - 63);
+  });
+
   it('explains when a qualified education level is on the wrong path', async () => {
     act(() =>
       useGameStore.setState((state) => ({
