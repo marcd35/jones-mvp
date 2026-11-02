@@ -474,12 +474,17 @@ const gameStoreCreator =
               players: patchActive(s, {
                 money: newMoney,
                 owedRent: player.owedRent - garnishment,
+                careerExperience: {
+                  ...player.careerExperience,
+                  [job.careerId]:
+                    (player.careerExperience[job.careerId] ?? 0) + 1,
+                },
                 timeRemaining: roundHours(
                   player.timeRemaining - job.workTimeHours,
                 ),
               }),
             },
-            `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}${garnishment ? `; $${garnishment} was garnished for rent.` : '.'}`,
+            `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}${garnishment ? `; $${garnishment} was garnished for rent.` : '.'} Gained 1 Career experience point.`,
           );
         });
       },
