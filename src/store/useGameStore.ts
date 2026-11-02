@@ -31,6 +31,7 @@ import {
   scalePrice,
 } from '@/lib/inflation';
 import { createRandom, Random } from '@/lib/random';
+import { newspaperIssueSchedule } from '@/lib/newspaper';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 
 interface GameActions {
@@ -544,12 +545,13 @@ const gameStoreCreator =
           notify(`The newspaper is sold at ${seller.name}.`);
           return;
         }
-        const weeksIntoCycle =
-          (state.currentWeek - 1) % newspaper.issueEveryWeeks;
-        if (weeksIntoCycle !== 0) {
-          const weeksUntilIssue = newspaper.issueEveryWeeks - weeksIntoCycle;
+        const issueSchedule = newspaperIssueSchedule(
+          state.currentWeek,
+          newspaper.issueEveryWeeks,
+        );
+        if (!issueSchedule.available) {
           notify(
-            `The next newspaper issue arrives in Week ${state.currentWeek + weeksUntilIssue}.`,
+            `The next newspaper issue arrives in Week ${issueSchedule.nextIssueWeek}.`,
           );
           return;
         }

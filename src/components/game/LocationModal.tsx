@@ -5,6 +5,7 @@ import { defaultPack } from '@/data';
 import { CLASS_HOURS, TUITION_COST } from '@/lib/constants';
 import { clothesState, meetsClothing, tierOf, weeksLeft } from '@/lib/clothing';
 import { scalePrice } from '@/lib/inflation';
+import { newspaperIssueSchedule } from '@/lib/newspaper';
 import { formatHours } from './TimeDial';
 
 interface LocationModalProps {
@@ -62,8 +63,10 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const sellsClothes = currentLocationId === clothing.locationId;
   const newspaperRules = defaultPack.newspaper;
   const sellsNewspaper = currentLocationId === newspaperRules.locationId;
-  const newspaperIssueAvailable =
-    (currentWeek - 1) % newspaperRules.issueEveryWeeks === 0;
+  const newspaperIssueScheduleForWeek = newspaperIssueSchedule(
+    currentWeek,
+    newspaperRules.issueEveryWeeks,
+  );
   const hasReadNewspaper = player.newspaperReadWeek === currentWeek;
   const rentDue = currentWeek >= rentDueWeek;
   const extensionAskedThisWeek = rentExtensionAskedWeek === currentWeek;
@@ -228,7 +231,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
               <p className="rounded border border-slate-700 bg-slate-800 p-3 text-sm text-white">
                 {newspaper ?? 'Nothing notable in the news this Week.'}
               </p>
-            ) : newspaperIssueAvailable ? (
+            ) : newspaperIssueScheduleForWeek.available ? (
               <Button
                 onClick={() => buyNewspaper()}
                 disabled={
@@ -243,10 +246,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
             ) : (
               <p className="text-sm text-slate-300">
                 The next issue arrives in Week{' '}
-                {currentWeek +
-                  (newspaperRules.issueEveryWeeks -
-                    ((currentWeek - 1) % newspaperRules.issueEveryWeeks))}
-                .
+                {newspaperIssueScheduleForWeek.nextIssueWeek}.
               </p>
             )}
           </section>
