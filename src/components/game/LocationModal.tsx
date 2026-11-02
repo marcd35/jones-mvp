@@ -8,6 +8,7 @@ import {
   MEAL_HOURS,
   TUITION_COST,
 } from '@/lib/constants';
+import { scalePrice } from '@/lib/inflation';
 import { formatHours } from './TimeDial';
 
 interface LocationModalProps {
@@ -29,6 +30,11 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const work = useGameStore((s) => s.work);
   const eat = useGameStore((s) => s.eat);
   const attendClass = useGameStore((s) => s.attendClass);
+  const priceLevel = useGameStore((s) => s.priceLevel);
+  const newspaper = useGameStore((s) => s.newspaper);
+  // Shop prices at this Week's hidden level (AC-010).
+  const tuition = scalePrice(TUITION_COST, priceLevel);
+  const mealCost = scalePrice(FOOD_COST, priceLevel);
 
   const currentLocation = defaultPack.locations.find(
     (l) => l.id === currentLocationId,
@@ -135,9 +141,9 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                 onClose();
               }}
               className="w-full bg-indigo-600 hover:bg-indigo-700"
-              disabled={money < TUITION_COST || timeRemaining < CLASS_HOURS}
+              disabled={money < tuition || timeRemaining < CLASS_HOURS}
             >
-              Attend Class (-${TUITION_COST} / {CLASS_HOURS}hrs)
+              Attend Class (-${tuition} / {CLASS_HOURS}hrs)
             </Button>
           </div>
         )}
@@ -151,21 +157,35 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
             }}
             className="w-full bg-orange-600 hover:bg-orange-700"
             disabled={
-              hasEaten || money < FOOD_COST || timeRemaining < MEAL_HOURS
+              hasEaten || money < mealCost || timeRemaining < MEAL_HOURS
             }
           >
             {hasEaten
               ? 'Already ate this week'
-              : `Buy Meal ($${FOOD_COST} / ${MEAL_HOURS}hr)`}
+              : `Buy Meal ($${mealCost} / ${MEAL_HOURS}hr)`}
           </Button>
         )}
 
         {/* === HOUSING INTERACTION === */}
         {currentLocation.type === 'housing' && (
-          <div className="rounded-lg bg-slate-800 p-4 text-center">
-            <p className="text-sm text-slate-400">
-              Safe and sound. Nothing to do here but rest.
-            </p>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-slate-800 p-4 text-center">
+              <p className="text-sm text-slate-400">
+                Safe and sound. Nothing to do here but rest.
+              </p>
+            </div>
+            {/* The newspaper: this Week's notable move of the price level. */}
+            <section
+              aria-label="Newspaper"
+              className="rounded border border-slate-700 bg-slate-800 p-3"
+            >
+              <h3 className="text-xs font-bold text-slate-400 uppercase">
+                Newspaper
+              </h3>
+              <p className="mt-1 text-sm text-white">
+                {newspaper ?? 'Nothing notable in the news this Week.'}
+              </p>
+            </section>
           </div>
         )}
 

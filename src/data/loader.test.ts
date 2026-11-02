@@ -204,3 +204,32 @@ describe('loadPack', () => {
     );
   });
 });
+
+describe('validatePack inflation rule', () => {
+  const rule = defaultPack.inflation;
+
+  it('rejects a start level of 0, a missing rule and a threshold of 0', () => {
+    const problems = validatePack({
+      ...defaultPack,
+      inflation: {
+        startLevel: 0,
+        nextLevel: undefined as never,
+        notableMoves: [{ minMove: 0, up: 'a', down: 'b' }],
+      },
+    });
+    expect(problems).toContain('The starting price level must be above 0.');
+    expect(problems).toContain('The price level needs a rule (nextLevel).');
+    expect(problems).toContain(
+      'A newspaper threshold needs a move of more than 0.',
+    );
+  });
+
+  it('accepts a replacement rule', () => {
+    expect(
+      validatePack({
+        ...defaultPack,
+        inflation: { ...rule, nextLevel: () => 1 },
+      }),
+    ).toEqual([]);
+  });
+});

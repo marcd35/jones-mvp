@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import Home from '@/app/page';
 import { useGameStore } from '@/store/useGameStore';
 import { defaultPack } from '@/data';
+import { newspaperHeadline, nextPriceLevel } from '@/lib/inflation';
 
 const STARTING_MONEY = defaultPack.startingMoney;
 
@@ -344,5 +345,77 @@ describe('Goals setup screen (AC-005)', () => {
     expect(
       screen.getByRole('heading', { name: 'Set your Goals' }),
     ).toBeVisible();
+  });
+});
+
+describe('inflation on screen (AC-004, AC-010)', () => {
+  // A seed whose first step (Week 1 to Week 2) is, or is not, a notable move.
+  const seedWhere = (notable: boolean) => {
+    for (let seed = 1; seed < 500; seed++) {
+      const next = nextPriceLevel(defaultPack.inflation, seed, 2, 1);
+      const headline = newspaperHeadline(defaultPack.inflation, 1, next);
+      if ((headline !== null) === notable) return seed;
+    }
+    throw new Error('no seed found');
+  };
+  const endWeek = async (seed: number) => {
+    act(() => useGameStore.setState({ priceSeed: seed }));
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+    return screen.getByRole('dialog', { name: /weekend report/i });
+  };
+  const lineOf = (report: HTMLElement, label: string) =>
+    within(report)
+      .getAllByRole('listitem')
+      .find((li) => li.firstElementChild?.textContent === label)!;
+
+  it('fills the inflation step line of the weekend report with the level move', async () => {
+    render(<Home />);
+    const report = await endWeek(seedWhere(false));
+    const level = useGameStore.getState().priceLevel;
+    expect(lineOf(report, 'Inflation step')).toHaveTextContent(
+      `Price level moves from 1.00 to ${level.toFixed(2)}.`,
+    );
+    expect(lineOf(report, 'Newspaper')).toHaveTextContent('No change');
+  });
+
+  it('prints the headline in the Newspaper line of the report, and again at home', async () => {
+    render(<Home />);
+    const report = await endWeek(seedWhere(true));
+    const headline = useGameStore.getState().newspaper!;
+    expect(headline).toBeTruthy();
+    expect(lineOf(report, 'Newspaper')).toHaveTextContent(headline);
+
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
+    await userEvent.click(tileButton('Low-cost housing')); // already home
+    const home = screen.getByRole('dialog', { name: 'Low-cost housing' });
+    expect(
+      within(within(home).getByLabelText('Newspaper')).getByText(headline),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing notable at home when the level moved little', async () => {
+    render(<Home />);
+    const report = await endWeek(seedWhere(false));
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
+    await userEvent.click(tileButton('Low-cost housing')); // already home
+    expect(screen.getByLabelText('Newspaper')).toHaveTextContent(
+      'Nothing notable in the news this Week.',
+    );
+  });
+
+  it('shows shop prices at the hidden level, and never the level on the Board', async () => {
+    act(() => useGameStore.setState({ priceLevel: 1.2 }));
+    const { container } = render(<Home />);
+    expect(container).not.toHaveTextContent('1.2');
+    expect(container).not.toHaveTextContent(/price level|inflation/i);
+    await userEvent.click(tileButton('Z-Mart'));
+    await userEvent.click(tileButton('Z-Mart'));
+    expect(
+      screen.getByRole('button', { name: /Buy Meal \(\$18 \/ 1hr\)/ }),
+    ).toBeEnabled();
   });
 });
