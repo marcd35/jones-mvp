@@ -1,12 +1,17 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import Home from '@/app/page';
 import { useGameStore } from '@/store/useGameStore';
-import { STARTING_MONEY, WIN_MONEY } from '@/lib/constants';
+import { defaultPack } from '@/data';
 
+const STARTING_MONEY = defaultPack.startingMoney;
+
+// A fresh game opens on the setup screen; most tests play from the first Turn.
+const setup = () => useGameStore.setState(useGameStore.getInitialState(), true);
 beforeEach(() => {
-  useGameStore.setState(useGameStore.getInitialState(), true);
+  setup();
+  useGameStore.getState().startGame();
 });
 
 // Each Location is a cell on the ring with one button.
@@ -149,21 +154,6 @@ describe('game page', () => {
     ).toBeDisabled();
   });
 
-  it('shows the victory screen and resets from it', async () => {
-    render(<Home />);
-    act(() =>
-      useGameStore.setState((st) => ({
-        gameStatus: 'won',
-        players: [{ ...st.players[0], money: WIN_MONEY }],
-      })),
-    );
-    expect(screen.getByText('VICTORY!')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Play Again' }));
-    expect(screen.queryByText('VICTORY!')).toBeNull();
-    expect(player().money).toBe(STARTING_MONEY);
-  });
-
   it('shows game over when the rent cannot be paid', async () => {
     render(<Home />);
     act(() =>
@@ -176,6 +166,30 @@ describe('game page', () => {
     expect(screen.getByText('GAME OVER')).toBeInTheDocument();
   });
 
+  it('shows the lose screen when the owed rent reaches the limit, with no actions behind it', async () => {
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        currentWeek: 3,
+        players: [{ ...st.players[0], owedRent: defaultPack.rentOwedLimit }],
+      })),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+
+    const over = screen.getByRole('dialog');
+    expect(over).toHaveTextContent('GAME OVER');
+    expect(over).toHaveTextContent('Weeks played3');
+    expect(over).toHaveTextContent(`Rent owed$${defaultPack.rentOwedLimit}`);
+    expect(screen.getByRole('button', { name: 'END WEEK' })).toBeDisabled();
+
+    await userEvent.click(
+      within(over).getByRole('button', { name: 'New game' }),
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Set your Goals' }),
+    ).toBeVisible();
+  });
+
   it('loads a saved game after mount rather than during first render', async () => {
     localStorage.setItem(
       'jones-mvp-storage',
@@ -184,5 +198,151 @@ describe('game page', () => {
     // A version 1 save has the Player's stats at the top level.
     render(<Home />);
     expect(await screen.findByText('$321')).toBeInTheDocument();
+  });
+});
+
+describe('Goals setup screen (AC-005)', () => {
+  beforeEach(setup);
+
+  const slider = (name: string) =>
+    screen.getByRole('slider', { name }) as HTMLInputElement;
+  const pointsLeft = () => screen.getByTestId('points-left');
+  const set = (name: string, value: number) =>
+    fireEvent.change(slider(name), { target: { value: String(value) } });
+
+  it('opens on the setup screen, not the Board', () => {
+    const { container } = render(<Home />);
+    expect(
+      screen.getByRole('heading', { name: 'Set your Goals' }),
+    ).toBeInTheDocument();
+    expect(container.querySelector('[data-cell]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'END WEEK' })).toBeNull();
+  });
+
+  it('shows four Goal sliders over the data budget, each with its target', () => {
+    render(<Home />);
+    expect(screen.getAllByRole('slider')).toHaveLength(4);
+    expect(pointsLeft()).toHaveTextContent('0 left of 200');
+    expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
+      'Target: $2,000',
+    );
+    for (const label of ['Wealth', 'Happiness', 'Education', 'Career']) {
+      expect(slider(label).value).toBe('50');
+    }
+  });
+
+  it('moves the target with the points, from the data table', () => {
+    render(<Home />);
+    set('Education', 0);
+    set('Wealth', 100);
+    expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
+      'Target: $4,000',
+    );
+    expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
+      'No target',
+    );
+    expect(pointsLeft()).toHaveTextContent('0 left of 200');
+  });
+
+  it('never lets the sliders add up to more than the budget', () => {
+    render(<Home />);
+    set('Wealth', 200);
+    // The others already hold 150 points, so wealth stays at 50.
+    expect(slider('Wealth').value).toBe('50');
+    set('Happiness', 0);
+    set('Education', 0);
+    set('Career', 0);
+    set('Wealth', 200);
+    expect(slider('Wealth').value).toBe('200');
+    set('Career', 100);
+    expect(slider('Career').value).toBe('0');
+    expect(pointsLeft()).toHaveTextContent('0 left of 200');
+  });
+
+  it('warns about a Goal that nothing measures yet', () => {
+    render(<Home />);
+    expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
+      3,
+    );
+    set('Happiness', 0);
+    expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
+      2,
+    );
+  });
+
+  it('will not start without a point on any Goal', () => {
+    render(<Home />);
+    for (const label of ['Wealth', 'Happiness', 'Education', 'Career']) {
+      set(label, 0);
+    }
+    expect(screen.getByRole('button', { name: 'Start game' })).toBeDisabled();
+  });
+
+  it('starts at Low-cost housing with the starting cash, then wins at the wealth Goal', async () => {
+    render(<Home />);
+    set('Happiness', 0);
+    set('Education', 0);
+    set('Career', 0);
+    set('Wealth', 10); // a target of $400 with the placeholder table
+    await userEvent.click(screen.getByRole('button', { name: 'Start game' }));
+
+    expect(
+      screen.queryByRole('heading', { name: 'Set your Goals' }),
+    ).toBeNull();
+    expect(screen.getByText(`$${STARTING_MONEY}`)).toBeInTheDocument();
+    expect(player().locationId).toBe('low-cost-housing');
+    expect(screen.getByText('12 hours left')).toBeInTheDocument();
+
+    // Earn to the Goal: hire, walk to work, work until it is met.
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Employment Office' }),
+      ).getByRole('button', { name: 'Take the Cook job' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    await userEvent.click(tileButton('Monolith Burger'));
+    await userEvent.click(tileButton('Monolith Burger'));
+    const work = () =>
+      within(screen.getByRole('dialog', { name: 'Monolith Burger' })).getByRole(
+        'button',
+        { name: /^Work/ },
+      );
+    for (let i = 0; i < 7; i++) await userEvent.click(work());
+
+    const over = screen.getByRole('dialog');
+    expect(over).toHaveTextContent('VICTORY!');
+    expect(over).toHaveTextContent('Weeks played1');
+    expect(over).toHaveTextContent(`Cash$${STARTING_MONEY + 7 * 32}`);
+    expect(over).toHaveTextContent('Wealth');
+    expect(over).toHaveTextContent('(met)');
+    expect(player().money).toBeGreaterThanOrEqual(400);
+  });
+
+  it('goes back to the setup screen from the victory screen with New game', async () => {
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        gameStatus: 'won',
+        players: [{ ...st.players[0], money: 999 }],
+      })),
+    );
+    expect(screen.getByText('VICTORY!')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    expect(screen.queryByText('VICTORY!')).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: 'Set your Goals' }),
+    ).toBeVisible();
+    expect(player().money).toBe(STARTING_MONEY);
+  });
+
+  it('offers NEW GAME during play', async () => {
+    useGameStore.getState().startGame();
+    render(<Home />);
+    await userEvent.click(screen.getByRole('button', { name: 'NEW GAME' }));
+    expect(
+      screen.getByRole('heading', { name: 'Set your Goals' }),
+    ).toBeVisible();
   });
 });

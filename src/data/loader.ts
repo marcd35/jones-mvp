@@ -1,6 +1,8 @@
 import { ringCoordinates } from '@/lib/board';
 import { MAX_TIME } from '@/lib/constants';
-import type { DataPack } from '@/types';
+import type { DataPack, GoalId } from '@/types';
+
+const GOAL_IDS: GoalId[] = ['wealth', 'happiness', 'education', 'career'];
 
 // Returns a readable message for every problem in the pack; empty when valid.
 export function validatePack(pack: DataPack): string[] {
@@ -84,6 +86,34 @@ export function validatePack(pack: DataPack): string[] {
   if (!home)
     problems.push(`Home Location "${pack.homeLocationId}" is not a Location.`);
   else if (home.closed) problems.push(`Home Location "${home.id}" is closed.`);
+
+  // Goals: one row for each category, starting points inside the budget.
+  const goalIds = new Set<string>();
+  let startPoints = 0;
+  for (const goal of pack.goals) {
+    if (goalIds.has(goal.id))
+      problems.push(`Goal "${goal.id}" is defined twice.`);
+    goalIds.add(goal.id);
+    if (!(goal.perPoint > 0))
+      problems.push(`Goal "${goal.id}" needs a target per point above 0.`);
+    if (!(goal.defaultPoints >= 0))
+      problems.push(`Goal "${goal.id}" needs default points of at least 0.`);
+    startPoints += goal.defaultPoints;
+  }
+  for (const id of GOAL_IDS) {
+    if (!goalIds.has(id)) problems.push(`Goal "${id}" is missing.`);
+  }
+  if (!(pack.goalPointsBudget > 0))
+    problems.push('Goal points budget must be above 0.');
+  else if (startPoints > pack.goalPointsBudget) {
+    problems.push(
+      `Default Goal points (${startPoints}) are over the budget of ${pack.goalPointsBudget}.`,
+    );
+  }
+  if (!(pack.startingMoney >= 0))
+    problems.push('Starting money must be at least 0.');
+  if (!(pack.rentOwedLimit > 0))
+    problems.push('The owed rent limit must be above 0.');
 
   const costs = Object.entries(pack.walkingCosts);
   if (costs.length === 0) problems.push('Walking-cost table is empty.');

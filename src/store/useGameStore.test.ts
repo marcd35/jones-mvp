@@ -12,16 +12,15 @@ import {
   MEAL_HOURS,
   RENT_COST,
   RENT_INTERVAL,
-  STARTING_MONEY,
   STARVATION_TIME_PENALTY,
   TUITION_COST,
-  WIN_JOB_ID,
-  WIN_MONEY,
 } from '@/lib/constants';
 
 const HOME = defaultPack.homeLocationId;
 const ENTRY_JOB = defaultPack.jobs[0];
-const WIN_JOB = defaultPack.jobs.find((j) => j.id === WIN_JOB_ID)!;
+// The job above the entry one: it asks for education.
+const BETTER_JOB = defaultPack.jobs.find((j) => j.educationRequired > 0)!;
+const STARTING_MONEY = defaultPack.startingMoney;
 const WORK = ENTRY_JOB.locationId;
 const EMPLOYMENT = 'employment-office';
 const STORE = 'z-mart';
@@ -46,8 +45,10 @@ const hoursFor = (from: string, to: string) =>
     MAX_TIME,
   );
 
+// Every game starts on the setup screen; most tests play from the first Turn.
 beforeEach(() => {
   useGameStore.setState(useGameStore.getInitialState(), true);
+  store().startGame();
 });
 
 describe('initial state', () => {
@@ -157,53 +158,96 @@ describe('walkTo', () => {
   });
 });
 
-describe('data pack separation', () => {
-  // An invented pack: nothing here exists in the shipped data.
-  const inventedPack: DataPack = {
-    locations: [
-      { id: 'cabin', name: 'Cabin', type: 'housing', description: 'Home.' },
-      { id: 'mine', name: 'Mine', type: 'work', description: 'Dig.' },
-      { id: 'shop', name: 'Shop', type: 'store', description: 'Buy.' },
-      { id: 'hall', name: 'Hall', type: 'employment', description: 'Hire.' },
-      {
-        id: 'vault',
-        name: 'Vault',
-        type: 'other',
-        description: '',
-        closed: true,
-      },
-    ],
-    jobs: [
-      {
-        id: 'digger',
-        title: 'Digger',
-        wage: 10,
-        locationId: 'mine',
-        educationRequired: 0,
-        shiftHours: 5,
-        workTimeHours: 2,
-      },
-    ],
-    layout: {
-      size: 3,
-      cells: [
-        { row: 0, col: 0, content: { kind: 'location', locationId: 'cabin' } },
-        { row: 0, col: 1, content: { kind: 'location', locationId: 'mine' } },
-        { row: 0, col: 2, content: { kind: 'location', locationId: 'shop' } },
-        { row: 1, col: 2, content: { kind: 'blank' } },
-        { row: 2, col: 2, content: { kind: 'clock' } },
-        { row: 2, col: 1, content: { kind: 'location', locationId: 'vault' } },
-        { row: 2, col: 0, content: { kind: 'location', locationId: 'hall' } },
-        { row: 1, col: 0, content: { kind: 'blank' } },
-      ],
-      centre: { row: 1, col: 1, rowSpan: 1, colSpan: 1 },
+// An invented pack: nothing here exists in the shipped data.
+const inventedPack: DataPack = {
+  locations: [
+    { id: 'cabin', name: 'Cabin', type: 'housing', description: 'Home.' },
+    { id: 'mine', name: 'Mine', type: 'work', description: 'Dig.' },
+    { id: 'shop', name: 'Shop', type: 'store', description: 'Buy.' },
+    { id: 'hall', name: 'Hall', type: 'employment', description: 'Hire.' },
+    {
+      id: 'vault',
+      name: 'Vault',
+      type: 'other',
+      description: '',
+      closed: true,
     },
-    walkingCosts: { 1: 10 },
-    homeLocationId: 'cabin',
-  };
-  const inventedStore = () =>
-    createGameStore({ pack: inventedPack, random: createRandom(1) });
+  ],
+  jobs: [
+    {
+      id: 'digger',
+      title: 'Digger',
+      wage: 10,
+      locationId: 'mine',
+      educationRequired: 0,
+      shiftHours: 5,
+      workTimeHours: 2,
+    },
+  ],
+  layout: {
+    size: 3,
+    cells: [
+      { row: 0, col: 0, content: { kind: 'location', locationId: 'cabin' } },
+      { row: 0, col: 1, content: { kind: 'location', locationId: 'mine' } },
+      { row: 0, col: 2, content: { kind: 'location', locationId: 'shop' } },
+      { row: 1, col: 2, content: { kind: 'blank' } },
+      { row: 2, col: 2, content: { kind: 'clock' } },
+      { row: 2, col: 1, content: { kind: 'location', locationId: 'vault' } },
+      { row: 2, col: 0, content: { kind: 'location', locationId: 'hall' } },
+      { row: 1, col: 0, content: { kind: 'blank' } },
+    ],
+    centre: { row: 1, col: 1, rowSpan: 1, colSpan: 1 },
+  },
+  walkingCosts: { 1: 10 },
+  homeLocationId: 'cabin',
+  startingMoney: 15,
+  goalPointsBudget: 90,
+  goals: [
+    {
+      id: 'wealth',
+      label: 'Riches',
+      defaultPoints: 30,
+      perPoint: 2,
+      prefix: '',
+      suffix: ' coins',
+    },
+    {
+      id: 'happiness',
+      label: 'Joy',
+      defaultPoints: 20,
+      perPoint: 1,
+      prefix: '',
+      suffix: '',
+    },
+    {
+      id: 'education',
+      label: 'Lore',
+      defaultPoints: 20,
+      perPoint: 1,
+      prefix: '',
+      suffix: '',
+    },
+    {
+      id: 'career',
+      label: 'Rank',
+      defaultPoints: 20,
+      perPoint: 1,
+      prefix: '',
+      suffix: '',
+    },
+  ],
+  rentOwedLimit: 40,
+};
+const inventedStore = () => {
+  const game = createGameStore({
+    pack: inventedPack,
+    random: createRandom(1),
+  });
+  game.getState().startGame();
+  return game;
+};
 
+describe('data pack separation', () => {
   it('plays a walk, a hire and a work shift with no rules change', () => {
     const game = inventedStore();
     const active = () => game.getState().players[0];
@@ -220,7 +264,7 @@ describe('data pack separation', () => {
 
     // The invented job's own numbers apply: $10 x 5 hours, 2 hours of Time.
     game.getState().work();
-    expect(active().money).toBe(STARTING_MONEY + 50);
+    expect(active().money).toBe(inventedPack.startingMoney + 50);
     expect(active().timeRemaining).toBeCloseTo(before - 2, 5);
     expect(game.getState().lastEvent).toMatch(/Digger/);
 
@@ -265,16 +309,16 @@ describe('hire', () => {
   });
 
   it('refuses a job the Player is not qualified for', () => {
-    store().hire(WIN_JOB.id);
+    store().hire(BETTER_JOB.id);
     expect(player().jobId).toBeNull();
     expect(store().lastEvent).toMatch(/education/i);
   });
 
   it('hires into a better job once qualified', () => {
     store().hire(ENTRY_JOB.id);
-    setPlayer({ educationLevel: WIN_JOB.educationRequired });
-    store().hire(WIN_JOB.id);
-    expect(player().jobId).toBe(WIN_JOB.id);
+    setPlayer({ educationLevel: BETTER_JOB.educationRequired });
+    store().hire(BETTER_JOB.id);
+    expect(player().jobId).toBe(BETTER_JOB.id);
   });
 
   it('says so when the Player already has the job', () => {
@@ -354,19 +398,6 @@ describe('work', () => {
     expect(player().timeRemaining).toBe(ENTRY_JOB.workTimeHours - 0.1);
     expect(store().currentWeek).toBe(1);
     expect(store().lastEvent).toBe('Not enough time to work!');
-  });
-
-  it('wins when a manager reaches the money goal', () => {
-    employ(WIN_JOB.id);
-    setPlayer({ money: WIN_MONEY - WIN_JOB.wage * WIN_JOB.shiftHours });
-    store().work();
-    expect(store().gameStatus).toBe('won');
-  });
-
-  it('does not win at the money goal in an entry-level job', () => {
-    setPlayer({ money: WIN_MONEY });
-    store().work();
-    expect(store().gameStatus).toBe('playing');
   });
 });
 
@@ -523,6 +554,7 @@ describe('attendClass', () => {
   });
 
   it('refuses without enough money', () => {
+    setPlayer({ money: TUITION_COST - 1 });
     store().attendClass();
     expect(player().educationLevel).toBe(0);
     expect(store().lastEvent).toBe('Need $100 and 4 hours for school.');
@@ -581,6 +613,293 @@ describe('endTurn', () => {
   });
 });
 
+describe('Goals setup (AC-005)', () => {
+  const GOALS = defaultPack.goals.map((g) => g.id);
+  const BUDGET = defaultPack.goalPointsBudget;
+  const total = () =>
+    Object.values(player().goals).reduce((sum, p) => sum + p, 0);
+  // Back to the setup screen, before the global beforeEach started the game.
+  beforeEach(() => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+  });
+
+  it('opens on the setup screen with the data budget and default points within it', () => {
+    expect(store().gameStatus).toBe('setup');
+    expect(BUDGET).toBe(200);
+    expect(total()).toBeLessThanOrEqual(BUDGET);
+    expect(Object.keys(player().goals).sort()).toEqual([...GOALS].sort());
+  });
+
+  it('starts the game at Low-cost housing with the starting cash from data', () => {
+    store().startGame();
+    expect(store().gameStatus).toBe('playing');
+    expect(player()).toMatchObject({
+      locationId: 'low-cost-housing',
+      money: defaultPack.startingMoney,
+      owedRent: 0,
+    });
+    expect(defaultPack.startingMoney).toBe(200);
+  });
+
+  it('sets the points on a Goal', () => {
+    // The defaults use the whole budget, so free some first.
+    store().setGoalPoints('happiness', 0);
+    store().setGoalPoints('education', 0);
+    store().setGoalPoints('wealth', 80);
+    expect(player().goals.wealth).toBe(80);
+  });
+
+  it.each(GOALS)('never lets the sum pass the budget (raising %s)', (id) => {
+    for (const other of GOALS) store().setGoalPoints(other, 0);
+    store().setGoalPoints('wealth', 150);
+    store().setGoalPoints(id, 150);
+    expect(total()).toBeLessThanOrEqual(BUDGET);
+    store().setGoalPoints(id, 10_000);
+    expect(total()).toBe(BUDGET);
+  });
+
+  it('gives the rest of the budget to the Goal being raised, and no more', () => {
+    for (const id of GOALS) store().setGoalPoints(id, 0);
+    store().setGoalPoints('wealth', 120);
+    store().setGoalPoints('career', 100);
+    expect(player().goals).toMatchObject({ wealth: 120, career: 80 });
+    // Lowering one Goal frees points for another.
+    store().setGoalPoints('wealth', 20);
+    store().setGoalPoints('career', 180);
+    expect(player().goals).toMatchObject({ wealth: 20, career: 180 });
+  });
+
+  it('ignores negative, fractional and non-numeric points', () => {
+    store().setGoalPoints('wealth', 40);
+    store().setGoalPoints('wealth', -5);
+    expect(player().goals.wealth).toBe(0);
+    store().setGoalPoints('wealth', 40.4);
+    expect(player().goals.wealth).toBe(40);
+    store().setGoalPoints('wealth', NaN);
+    expect(player().goals.wealth).toBe(40);
+  });
+
+  it('will not start with no Goal points at all, which would win at once', () => {
+    for (const id of GOALS) store().setGoalPoints(id, 0);
+    store().startGame();
+    expect(store().gameStatus).toBe('setup');
+    expect(store().lastEvent).toMatch(/at least one Goal point/i);
+  });
+
+  it('cannot change Goals once the game has started', () => {
+    store().setGoalPoints('wealth', 10);
+    store().startGame();
+    store().setGoalPoints('wealth', 90);
+    expect(player().goals.wealth).toBe(10);
+  });
+
+  it('allows no actions during setup', () => {
+    store().walkTo(STORE);
+    store().endTurn();
+    expect(player().locationId).toBe(HOME);
+    expect(store().currentWeek).toBe(1);
+  });
+
+  it('reads its budget from an injected pack', () => {
+    const pack = {
+      ...defaultPack,
+      goalPointsBudget: 60,
+      goals: defaultPack.goals.map((g) => ({ ...g, defaultPoints: 10 })),
+    };
+    const game = createGameStore({ pack });
+    game.getState().setGoalPoints('wealth', 5000);
+    const goals = game.getState().players[0].goals;
+    expect(Object.values(goals).reduce((a, b) => a + b, 0)).toBe(60);
+  });
+});
+
+describe('winning and losing (AC-006)', () => {
+  const WEALTH = defaultPack.goals.find((g) => g.id === 'wealth')!;
+  // Starts a game with every point on wealth and returns its target.
+  const wealthOnly = (points: number) => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    for (const g of defaultPack.goals) store().setGoalPoints(g.id, 0);
+    store().setGoalPoints('wealth', points);
+    store().startGame();
+    return Math.ceil(points * WEALTH.perPoint);
+  };
+  const atWork = () => setPlayer({ locationId: WORK, jobId: ENTRY_JOB.id });
+  const shift = ENTRY_JOB.wage * ENTRY_JOB.shiftHours;
+  const LIMIT = defaultPack.rentOwedLimit;
+
+  it('wins when a Work action brings cash to the wealth target', () => {
+    const target = wealthOnly(10);
+    atWork();
+    setPlayer({ money: target - shift });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+    expect(player().money).toBe(target);
+  });
+
+  it('does not win one dollar short', () => {
+    const target = wealthOnly(10);
+    atWork();
+    setPlayer({ money: target - shift - 1 });
+    store().work();
+    expect(store().gameStatus).toBe('playing');
+  });
+
+  it('wins in any job: the rules name no job', () => {
+    const target = wealthOnly(10);
+    setPlayer({
+      locationId: BETTER_JOB.locationId,
+      jobId: BETTER_JOB.id,
+      educationLevel: BETTER_JOB.educationRequired,
+      money: target - BETTER_JOB.wage * BETTER_JOB.shiftHours,
+    });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+  });
+
+  it('wins on the last Time of a Week without rolling into the next Week', () => {
+    const target = wealthOnly(10);
+    atWork();
+    setPlayer({
+      money: target - shift,
+      timeRemaining: ENTRY_JOB.workTimeHours,
+    });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+    expect(store().currentWeek).toBe(1);
+    expect(store().weekendReport).toBeNull();
+  });
+
+  it('plays to a win: hire, walk and earn Week after Week up to a wealth Goal', () => {
+    const target = wealthOnly(10);
+    store().walkTo(EMPLOYMENT);
+    store().hire(ENTRY_JOB.id);
+    let guard = 0;
+    while (store().gameStatus === 'playing' && guard++ < 1000) {
+      if (player().locationId !== WORK) store().walkTo(WORK);
+      else store().work();
+    }
+    expect(store().gameStatus).toBe('won');
+    expect(player().money).toBeGreaterThanOrEqual(target);
+  });
+
+  it('counts a Goal with points but no measure yet as unmet', () => {
+    const target = wealthOnly(10);
+    atWork();
+    useGameStore.setState((s) => ({
+      players: s.players.map((p) => ({
+        ...p,
+        money: target,
+        goals: { ...p.goals, education: 10 },
+      })),
+    }));
+    store().work();
+    // Wealth is met, but education has points and nothing measures it yet.
+    expect(store().gameStatus).toBe('playing');
+  });
+
+  it('needs every Goal met: a fortune does not win with points on the unbuilt Goals', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    store().startGame(); // the default points on all four Goals
+    atWork();
+    setPlayer({ money: 1_000_000 });
+    store().work();
+    expect(store().gameStatus).toBe('playing');
+  });
+
+  it('allows no action after a win, and a new game is still available', () => {
+    const target = wealthOnly(10);
+    atWork();
+    setPlayer({ money: target - shift });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+    const before = JSON.stringify(player());
+    store().walkTo(STORE);
+    store().work();
+    store().endTurn();
+    store().eat();
+    expect(JSON.stringify(player())).toBe(before);
+    store().resetGame();
+    expect(store().gameStatus).toBe('setup');
+  });
+
+  it('loses when the owed rent reaches the limit at the end of a Week', () => {
+    wealthOnly(10);
+    setPlayer({ owedRent: LIMIT });
+    store().endTurn();
+    expect(store().gameStatus).toBe('lost');
+  });
+
+  it('loses straight away when an action leaves the owed rent at the limit', () => {
+    wealthOnly(10);
+    atWork();
+    setPlayer({ owedRent: LIMIT });
+    store().work();
+    expect(store().gameStatus).toBe('lost');
+  });
+
+  it('does not lose one dollar below the limit', () => {
+    wealthOnly(10);
+    setPlayer({ owedRent: LIMIT - 1 });
+    store().endTurn();
+    expect(store().gameStatus).toBe('playing');
+  });
+
+  it('loses even when the Goals are met at the same moment', () => {
+    const target = wealthOnly(10);
+    atWork();
+    setPlayer({ money: target, owedRent: LIMIT });
+    store().work();
+    expect(store().gameStatus).toBe('lost');
+  });
+
+  it('allows no action after a loss', () => {
+    wealthOnly(10);
+    setPlayer({ owedRent: LIMIT });
+    store().endTurn();
+    const week = store().currentWeek;
+    const before = JSON.stringify(player());
+    store().walkTo(STORE);
+    store().endTurn();
+    expect(store().currentWeek).toBe(week);
+    expect(JSON.stringify(player())).toBe(before);
+  });
+
+  it('keeps the Week the game ended in as the Weeks played', () => {
+    wealthOnly(10);
+    setState({ currentWeek: 5 });
+    setPlayer({ owedRent: LIMIT });
+    store().endTurn();
+    expect(store().gameStatus).toBe('lost');
+    expect(store().currentWeek).toBe(5);
+  });
+
+  it('wins and loses in an invented pack with its own targets and limit', () => {
+    const game = createGameStore({ pack: inventedPack });
+    const s = () => game.getState();
+    for (const g of inventedPack.goals) s().setGoalPoints(g.id, 0);
+    s().setGoalPoints('wealth', 20); // 20 x 2 = a target of 40; starts with 15
+    s().startGame();
+    s().walkTo('hall');
+    s().hire('digger');
+    s().walkTo('mine');
+    s().work(); // +50
+    expect(s().gameStatus).toBe('won');
+
+    s().resetGame();
+    for (const g of inventedPack.goals) s().setGoalPoints(g.id, 0);
+    s().setGoalPoints('wealth', 20);
+    s().startGame();
+    game.setState((st) => ({
+      players: st.players.map((p) => ({
+        ...p,
+        owedRent: inventedPack.rentOwedLimit,
+      })),
+    }));
+    s().endTurn();
+    expect(s().gameStatus).toBe('lost');
+  });
+});
+
 describe('after the game has ended', () => {
   it.each(['won', 'lost'] as const)(
     'ignores every action once the game is %s',
@@ -606,11 +925,14 @@ describe('after the game has ended', () => {
     },
   );
 
-  it('can still be reset', () => {
-    setState({ gameStatus: 'lost' });
-    store().resetGame();
-    expect(store().gameStatus).toBe('playing');
-  });
+  it.each(['won', 'lost'] as const)(
+    'can start a new game after %s',
+    (gameStatus) => {
+      setState({ gameStatus });
+      store().resetGame();
+      expect(store().gameStatus).toBe('setup');
+    },
+  );
 });
 
 describe('events', () => {
@@ -656,7 +978,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(3);
+    expect(persisted().version).toBe(4);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -702,6 +1024,30 @@ describe('persistence', () => {
       1,
     )) as { players: Player[] };
     expect(migrated.players[0]).toMatchObject({ money: 5, locationId: HOME });
+  });
+
+  it('migrates a version 3 save: Goals and owed rent are added, and a game in play goes back through setup', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const old = { ...player(), money: 88 } as Partial<Player>;
+    delete old.goals;
+    delete old.owedRent;
+    const migrated = (await migrate?.(
+      { currentWeek: 6, gameStatus: 'playing', players: [old], turnIndex: 0 },
+      3,
+    )) as { players: Player[]; gameStatus: string; currentWeek: number };
+    expect(migrated.gameStatus).toBe('setup');
+    expect(migrated.currentWeek).toBe(6);
+    expect(migrated.players[0]).toMatchObject({ money: 88, owedRent: 0 });
+    expect(migrated.players[0].goals).toEqual(player().goals);
+  });
+
+  it('leaves a finished game finished when migrating', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const migrated = (await migrate?.(
+      { gameStatus: 'won', players: [player()], turnIndex: 0 },
+      3,
+    )) as { gameStatus: string };
+    expect(migrated.gameStatus).toBe('won');
   });
 
   it('does not touch localStorage until rehydrated', () => {

@@ -14,7 +14,25 @@ export interface Location {
   closed?: boolean; // On the Board but cannot be entered (DEC-008)
 }
 
-export type GameStatus = 'playing' | 'won' | 'lost';
+// 'setup' is the Goal-setting screen before the first Turn (AC-005).
+export type GameStatus = 'setup' | 'playing' | 'won' | 'lost';
+
+// The four Goal categories (DEC-009).
+export type GoalId = 'wealth' | 'happiness' | 'education' | 'career';
+
+// Goal points spent on each Goal.
+export type GoalPoints = Record<GoalId, number>;
+
+// One row of the Goal table (UNK-005: the numbers are placeholders until the
+// balance pass, T-15).
+export interface GoalDef {
+  id: GoalId;
+  label: string;
+  defaultPoints: number; // Where the slider starts
+  perPoint: number; // The target grows by this much for each Goal point
+  prefix: string; // Shown before the target, e.g. "$"
+  suffix: string; // Shown after the target, e.g. " happiness"
+}
 
 export interface Job {
   id: string;
@@ -55,6 +73,10 @@ export interface DataPack {
   layout: BoardLayout;
   walkingCosts: WalkingCostTable;
   homeLocationId: string;
+  startingMoney: number; // A new Player's cash
+  goalPointsBudget: number; // Goal points a Player splits across the Goals
+  goals: GoalDef[]; // One row for each GoalId
+  rentOwedLimit: number; // The owed rent balance that loses the game (DEC-023)
 }
 
 export interface Player {
@@ -67,6 +89,8 @@ export interface Player {
   isStarving: boolean; // Penalty state if they didn't eat
   locationId: string;
   jobId: string | null; // Hired at an employment Location; null = no job
+  goals: GoalPoints; // Goal points set at setup; 0 = no Goal in that category
+  owedRent: number; // Rent owed and not yet paid (T-09 fills it)
 }
 
 // The effects of a Week's end, in the fixed order they are applied and listed

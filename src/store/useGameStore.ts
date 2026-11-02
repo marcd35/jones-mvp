@@ -3,6 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   DataPack,
   GameState,
+  GameStatus,
+  GoalId,
+  GoalPoints,
   Player,
   WeekEndReason,
   WeekendEffectId,
@@ -14,20 +17,20 @@ import {
   MEAL_HOURS,
   RENT_COST,
   RENT_INTERVAL,
-  STARTING_MONEY,
   STARVATION_TIME_PENALTY,
   TUITION_COST,
-  WIN_JOB_ID,
-  WIN_MONEY,
 } from '@/lib/constants';
 import { defaultPack } from '@/data';
 import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
+import { allGoalsMet, clampGoalPoints, totalGoalPoints } from '@/lib/goals';
 import { createRandom, Random } from '@/lib/random';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 
 interface GameActions {
+  setGoalPoints: (goalId: GoalId, points: number) => void;
+  startGame: () => void;
   walkTo: (locationId: string) => void;
   hire: (jobId: string) => void;
   work: () => void;
@@ -46,7 +49,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -58,20 +61,27 @@ const withEvent = (state: GameState, message: string) => ({
   eventSeq: state.eventSeq + 1,
 });
 
+export const defaultGoalPoints = (pack: DataPack): GoalPoints =>
+  Object.fromEntries(
+    pack.goals.map((g) => [g.id, g.defaultPoints]),
+  ) as GoalPoints;
+
 const newPlayer = (pack: DataPack): Player => ({
   id: 'player-1',
   name: 'You',
-  money: STARTING_MONEY,
+  money: pack.startingMoney,
   timeRemaining: MAX_TIME,
   educationLevel: 0,
   hasEaten: false,
   isStarving: false,
   locationId: pack.homeLocationId,
   jobId: null,
+  goals: defaultGoalPoints(pack),
+  owedRent: 0,
 });
 
 const initialState = (pack: DataPack): GameState => ({
-  gameStatus: 'playing',
+  gameStatus: 'setup',
   lastEvent: null,
   eventSeq: 0,
   currentWeek: 1,
@@ -95,6 +105,13 @@ const gameStoreCreator =
     // Records an event without changing anything else.
     const notify = (message: string) =>
       set((state) => withEvent(state, message));
+
+    // Whether the active Player has won or lost (AC-006). Losing comes first.
+    const endStatus = (state: GameState): GameStatus => {
+      const player = activePlayer(state);
+      if (player.owedRent >= pack.rentOwedLimit) return 'lost';
+      return allGoalsMet(pack.goals, player) ? 'won' : 'playing';
+    };
 
     // Ends the active Player's Week. The effects run in the fixed order of
     // WEEKEND_EFFECTS; then the next Turn starts: home, with full Time less any
@@ -139,15 +156,20 @@ const gameStoreCreator =
         ? MAX_TIME - STARVATION_TIME_PENALTY
         : MAX_TIME;
 
+      const players = patchActive(state, {
+        timeRemaining: nextMaxTime,
+        money: currentMoney,
+        hasEaten: false,
+        isStarving: isStarvingNow,
+        locationId: pack.homeLocationId,
+      });
+      if (status === 'playing') status = endStatus({ ...state, players });
+
       return {
-        currentWeek: state.currentWeek + 1,
-        players: patchActive(state, {
-          timeRemaining: nextMaxTime,
-          money: currentMoney,
-          hasEaten: false,
-          isStarving: isStarvingNow,
-          locationId: pack.homeLocationId,
-        }),
+        // A game that ended keeps the Week it ended in (the Weeks played).
+        currentWeek:
+          status === 'playing' ? state.currentWeek + 1 : state.currentWeek,
+        players,
         gameStatus: status,
         weekendReport: {
           week: state.currentWeek,
@@ -170,11 +192,13 @@ const gameStoreCreator =
       message: string | null = null,
     ) => {
       const after = { ...state, ...next };
-      if (
-        after.gameStatus !== 'playing' ||
-        activePlayer(after).timeRemaining > 0
-      ) {
-        return { ...next, ...(message ? withEvent(state, message) : {}) };
+      const status = endStatus(after);
+      if (status !== 'playing' || activePlayer(after).timeRemaining > 0) {
+        return {
+          ...next,
+          gameStatus: status,
+          ...(message ? withEvent(state, message) : {}),
+        };
       }
       return rollWeek(
         after,
@@ -185,6 +209,38 @@ const gameStoreCreator =
 
     return {
       ...initialState(pack),
+
+      setGoalPoints: (goalId, points) => {
+        const state = get();
+        if (state.gameStatus !== 'setup') return;
+        const goals = activePlayer(state).goals;
+        if (!(goalId in goals)) return;
+        set((s) => ({
+          players: patchActive(s, {
+            goals: {
+              ...goals,
+              [goalId]: clampGoalPoints(
+                goals,
+                goalId,
+                points,
+                pack.goalPointsBudget,
+              ),
+            },
+          }),
+        }));
+      },
+
+      startGame: () => {
+        const state = get();
+        if (state.gameStatus !== 'setup') return;
+        // With no points at all every Goal is met and the game would end at
+        // once, so at least one Goal needs a point.
+        if (totalGoalPoints(activePlayer(state).goals) === 0) {
+          notify('Put at least one Goal point on a Goal to start.');
+          return;
+        }
+        set({ gameStatus: 'playing' });
+      },
 
       walkTo: (targetLocationId) => {
         const state = get();
@@ -281,7 +337,6 @@ const gameStoreCreator =
           const player = activePlayer(s);
           const earned = job.wage * job.shiftHours;
           const newMoney = player.money + earned;
-          const isWin = newMoney >= WIN_MONEY && job.id === WIN_JOB_ID;
 
           return settle(
             s,
@@ -292,7 +347,6 @@ const gameStoreCreator =
                   player.timeRemaining - job.workTimeHours,
                 ),
               }),
-              gameStatus: isWin ? 'won' : 'playing',
             },
             `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}.`,
           );
@@ -439,6 +493,16 @@ export const useGameStore = create<GameStore>()(
           jobId: p.jobId ?? null,
         }));
         state.weekendReport = null;
+      }
+      // v4 added Goals and owed rent, and a setup screen before play. A game
+      // saved mid-play goes back through setup, keeping its progress.
+      if (version < 4) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          goals: p.goals ?? defaultGoalPoints(gamePack),
+          owedRent: p.owedRent ?? 0,
+        }));
+        if (state.gameStatus === 'playing') state.gameStatus = 'setup';
       }
       return state as never;
     },
