@@ -13,6 +13,18 @@ describe('validatePack', () => {
     expect(validatePack(defaultPack)).toEqual([]);
   });
 
+  it('rejects invalid household good values', () => {
+    const pack = {
+      ...defaultPack,
+      householdGoods: {
+        goods: [{ ...defaultPack.householdGoods.goods[0], stockChance: 2 }],
+      },
+    };
+    expect(validatePack(pack)).toContain(
+      'Household good "microwave" needs a stock chance between 0 and 1.',
+    );
+  });
+
   it('rejects a layout with a missing cell', () => {
     const problems = validatePack(withCells(defaultPack.layout.cells.slice(1)));
     expect(problems).toContain('Board layout has no cell at 0,0.');

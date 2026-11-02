@@ -69,6 +69,21 @@ export interface FoodRules {
   goods: FoodGood[];
 }
 
+// A household good sold at a store. Availability is drawn deterministically
+// from the game's seed for each Week; stockChance is replaceable balance data.
+export interface HouseholdGood {
+  id: string;
+  name: string;
+  locationId: string;
+  basePrice: number;
+  happinessPoints: number;
+  stockChance: number;
+}
+
+export interface HouseholdGoodsRules {
+  goods: HouseholdGood[];
+}
+
 // One clothing tier. A higher rank meets every lower rank's job requirement.
 export interface ClothingTier {
   id: string;
@@ -155,6 +170,7 @@ export interface DataPack {
   inflation: InflationRule;
   newspaper: NewspaperRules;
   food: FoodRules;
+  householdGoods: HouseholdGoodsRules;
   clothing: ClothingRules;
 }
 
@@ -174,6 +190,7 @@ export interface Player {
   // Weeks of food in hand, this Week included: above 0 means this Week is
   // covered. One is used up when the Week ends.
   foodWeeks: number;
+  ownedGoods: string[]; // HouseholdGood ids the Player owns
   isStarving: boolean; // This Week began with the hunger penalty
   // What the Player wears and the Weeks worn; null = no clothes at all.
   clothes: { tierId: string; weeksWorn: number } | null;

@@ -1,6 +1,7 @@
 import type { DataPack } from '@/types';
 import { CLOTHING } from './clothing';
 import { FOOD } from './food';
+import { HOUSEHOLD_GOODS } from './household-goods';
 import { INFLATION } from './inflation';
 import { NEWSPAPER } from './newspaper';
 import { GOALS, GOAL_POINTS_BUDGET } from './goals';
@@ -27,5 +28,6 @@ export const defaultPack: DataPack = {
   inflation: INFLATION,
   newspaper: NEWSPAPER,
   food: FOOD,
+  householdGoods: HOUSEHOLD_GOODS,
   clothing: CLOTHING,
 };

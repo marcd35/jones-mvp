@@ -6,6 +6,7 @@ import { CLASS_HOURS, TUITION_COST } from '@/lib/constants';
 import { clothesState, meetsClothing, tierOf, weeksLeft } from '@/lib/clothing';
 import { scalePrice } from '@/lib/inflation';
 import { newspaperIssueSchedule } from '@/lib/newspaper';
+import { householdStockForWeek } from '@/lib/household-goods';
 import { formatHours } from './TimeDial';
 
 interface LocationModalProps {
@@ -30,6 +31,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const hire = useGameStore((s) => s.hire);
   const work = useGameStore((s) => s.work);
   const buyFood = useGameStore((s) => s.buyFood);
+  const buyHouseholdGood = useGameStore((s) => s.buyHouseholdGood);
   const buyClothes = useGameStore((s) => s.buyClothes);
   const buyNewspaper = useGameStore((s) => s.buyNewspaper);
   const attendClass = useGameStore((s) => s.attendClass);
@@ -37,11 +39,12 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const payRentBalance = useGameStore((s) => s.payRentBalance);
   const askForMoreTime = useGameStore((s) => s.askForMoreTime);
   const currentWeek = useGameStore((s) => s.currentWeek);
+  const priceSeed = useGameStore((s) => s.priceSeed);
   const priceLevel = useGameStore((s) => s.priceLevel);
   const newspaper = useGameStore((s) => s.newspaper);
   // Shop prices at this Week's hidden level (AC-010).
   const tuition = scalePrice(TUITION_COST, priceLevel);
-  const { food, clothing } = defaultPack;
+  const { food, clothing, householdGoods } = defaultPack;
   const myTier = tierOf(clothing, clothes);
   const wornState = clothesState(clothing, clothes);
 
@@ -60,6 +63,15 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const localFood = food.goods.filter(
     (g) => g.locationId === currentLocationId,
   );
+  const localGoods = householdStockForWeek(
+    defaultPack,
+    currentWeek,
+    priceSeed,
+    currentLocationId,
+  );
+  const ownedGoods = player.ownedGoods
+    .map((id) => householdGoods.goods.find((good) => good.id === id))
+    .filter((good) => good !== undefined);
   const sellsClothes = currentLocationId === clothing.locationId;
   const newspaperRules = defaultPack.newspaper;
   const sellsNewspaper = currentLocationId === newspaperRules.locationId;
@@ -224,6 +236,27 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
           </section>
         )}
 
+        {localGoods.length > 0 && (
+          <section aria-label="Household goods" className="space-y-2">
+            <h3 className="text-sm font-bold text-white">Goods in stock</h3>
+            {localGoods.map((good) => {
+              const price = scalePrice(good.basePrice, priceLevel);
+              const alreadyOwned = player.ownedGoods.includes(good.id);
+              return (
+                <Button
+                  key={good.id}
+                  onClick={() => buyHouseholdGood(good.id)}
+                  className="min-h-11 w-full bg-cyan-700 hover:bg-cyan-800"
+                  disabled={alreadyOwned || money < price}
+                >
+                  {alreadyOwned ? 'Owned: ' : 'Buy '}
+                  {good.name} (${price})
+                </Button>
+              );
+            })}
+          </section>
+        )}
+
         {sellsNewspaper && (
           <section aria-label="Newspaper" className="space-y-2">
             <h3 className="text-sm font-bold text-white">Newspaper</h3>
@@ -296,6 +329,17 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
               </p>
             </div>
           </div>
+        )}
+
+        {ownedGoods.length > 0 && (
+          <section aria-label="Owned goods" className="space-y-2">
+            <h3 className="text-sm font-bold text-white">Owned goods</h3>
+            <ul className="list-inside list-disc text-sm text-slate-300">
+              {ownedGoods.map((good) => (
+                <li key={good.id}>{good.name}</li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* === RENT OFFICE === */}

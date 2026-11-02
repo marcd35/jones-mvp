@@ -5,6 +5,7 @@ import Home from '@/app/page';
 import { useGameStore } from '@/store/useGameStore';
 import { defaultPack } from '@/data';
 import { newspaperHeadline, nextPriceLevel } from '@/lib/inflation';
+import { householdStockForWeek } from '@/lib/household-goods';
 
 const STARTING_MONEY = defaultPack.startingMoney;
 
@@ -668,5 +669,41 @@ describe('clothing on screen (AC-008)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
     report = screen.getByRole('dialog', { name: /weekend report/i });
     expect(line()).toHaveTextContent('Your Casual Clothes are worn out.');
+  });
+});
+
+describe('household goods on screen (AC-009)', () => {
+  it('shows current stock and scaled prices, and keeps owned goods visible elsewhere', async () => {
+    act(() =>
+      useGameStore.setState((state) => ({
+        players: [{ ...state.players[0], locationId: 'z-mart', money: 2000 }],
+      })),
+    );
+    render(<Home />);
+    await userEvent.click(tileButton('Z-Mart'));
+    const store = screen.getByRole('dialog', { name: 'Z-Mart' });
+    const state = useGameStore.getState();
+    const first = householdStockForWeek(
+      defaultPack,
+      state.currentWeek,
+      state.priceSeed,
+      'z-mart',
+    )[0];
+    const price = Math.round(first.basePrice * state.priceLevel);
+    const purchase = within(store).getByRole('button', {
+      name: new RegExp(`Buy ${first.name} \\(\\$${price}\\)`),
+    });
+    expect(purchase).toBeEnabled();
+    await userEvent.click(purchase);
+    expect(player().ownedGoods).toContain(first.id);
+    expect(player().money).toBe(2000 - price);
+    await userEvent.click(within(store).getByRole('button', { name: 'Leave' }));
+
+    await userEvent.click(tileButton('Low-cost housing'));
+    await userEvent.click(tileButton('Low-cost housing'));
+    const home = screen.getByRole('dialog', { name: 'Low-cost housing' });
+    expect(
+      within(home).getByRole('region', { name: 'Owned goods' }),
+    ).toHaveTextContent(first.name);
   });
 });
