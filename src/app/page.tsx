@@ -1,6 +1,7 @@
 'use client';
 
 import { HUD } from '@/components/game/HUD';
+import { StoreHydrator } from '@/components/game/StoreHydrator';
 import { Board } from '@/components/game/Board';
 import { GameOver } from '@/components/game/GameOver';
 import { Toast } from '@/components/ui/Toast';
@@ -8,10 +9,12 @@ import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
 
 export default function Home() {
-  const { endTurn, resetGame, lastEvent } = useGameStore();
+  const endTurn = useGameStore((s) => s.endTurn);
+  const resetGame = useGameStore((s) => s.resetGame);
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-900 p-4 text-white md:p-8">
+      <StoreHydrator />
       {/* Header */}
       <div className="mb-8 flex w-full max-w-6xl items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-blue-500">
@@ -30,13 +33,6 @@ export default function Home() {
           </Button>
         </div>
       </div>
-
-      {/* Message Log (replaced with Toast but keeping fallback) */}
-      {lastEvent && !useGameStore.getState().lastEvent && (
-        <div className="mb-4 animate-pulse rounded border border-slate-600 bg-slate-800/80 p-3 text-sm text-yellow-300">
-          Console: {lastEvent}
-        </div>
-      )}
 
       {/* Stats */}
       <HUD />

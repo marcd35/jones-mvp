@@ -4,8 +4,11 @@ import { useGameStore } from '@/store/useGameStore';
 import { Clock, DollarSign, Calendar, Utensils } from 'lucide-react';
 
 export function HUD() {
-  const { money, currentWeek, timeRemaining, hasEaten, isStarving } =
-    useGameStore();
+  const money = useGameStore((s) => s.money);
+  const currentWeek = useGameStore((s) => s.currentWeek);
+  const timeRemaining = useGameStore((s) => s.timeRemaining);
+  const hasEaten = useGameStore((s) => s.hasEaten);
+  const isStarving = useGameStore((s) => s.isStarving);
 
   return (
     <div className="mb-6 grid w-full max-w-4xl grid-cols-2 gap-4 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-lg md:grid-cols-4">
