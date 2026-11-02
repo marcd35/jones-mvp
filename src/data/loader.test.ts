@@ -185,6 +185,29 @@ describe('validatePack', () => {
       expect(problems).toContain('Starting money must be at least 0.');
       expect(problems).toContain('The owed rent limit must be above 0.');
     });
+
+    it('rejects invalid rent timing, amounts, garnishment, or office Location', () => {
+      const problems = validatePack({
+        ...defaultPack,
+        rent: {
+          ...defaultPack.rent,
+          locationId: 'missing',
+          intervalWeeks: 0,
+          garnishment: -1,
+          homeAmounts: { [defaultPack.homeLocationId]: -5 },
+        },
+      });
+      expect(problems).toContain(
+        'The Rent Office Location "missing" is missing or closed.',
+      );
+      expect(problems).toContain(
+        'Rent must be due at a whole Week interval of at least 1.',
+      );
+      expect(problems).toContain('The rent garnishment must be at least 0.');
+      expect(problems).toContain(
+        `Rent for home Location "${defaultPack.homeLocationId}" must be non-negative.`,
+      );
+    });
   });
 });
 

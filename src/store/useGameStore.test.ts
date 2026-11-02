@@ -6,19 +6,15 @@ import { scalePrice } from '@/lib/inflation';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
 import type { DataPack, GameState, Player } from '@/types';
-import {
-  CLASS_HOURS,
-  MAX_TIME,
-  RENT_COST,
-  RENT_INTERVAL,
-  TUITION_COST,
-} from '@/lib/constants';
+import { CLASS_HOURS, MAX_TIME, TUITION_COST } from '@/lib/constants';
 
 const HOME = defaultPack.homeLocationId;
 const ENTRY_JOB = defaultPack.jobs[0];
 // The job above the entry one: it asks for education.
 const BETTER_JOB = defaultPack.jobs.find((j) => j.educationRequired > 0)!;
 const STARTING_MONEY = defaultPack.startingMoney;
+const RENT_COST = defaultPack.rent.homeAmounts[HOME];
+const RENT_INTERVAL = defaultPack.rent.intervalWeeks;
 const WORK = ENTRY_JOB.locationId;
 const EMPLOYMENT = 'employment-office';
 const STORE = 'z-mart';
@@ -72,6 +68,9 @@ describe('initial state', () => {
       isStarving: false,
       clothes: { tierId: defaultPack.clothing.startTierId, weeksWorn: 0 },
       locationId: HOME,
+      rentDueWeek: RENT_INTERVAL,
+      rentExtensionAskedWeek: null,
+      rentPaidWeek: null,
     });
   });
 
@@ -143,7 +142,8 @@ describe('walkTo', () => {
     setState({ currentWeek: RENT_INTERVAL });
     setPlayer({ timeRemaining: 0.1, money: 300 });
     store().walkTo(STORE);
-    expect(player().money).toBe(300 - RENT_COST);
+    expect(player().money).toBe(300);
+    expect(player().owedRent).toBe(RENT_COST);
     expect(player().isStarving).toBe(true);
     expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
   });
@@ -152,7 +152,8 @@ describe('walkTo', () => {
     setState({ currentWeek: RENT_INTERVAL });
     setPlayer({ timeRemaining: 0.1, money: 0 });
     store().walkTo(STORE);
-    expect(store().gameStatus).toBe('lost');
+    expect(store().gameStatus).toBe('playing');
+    expect(player().owedRent).toBe(RENT_COST);
   });
 
   it('succeeds with exactly enough Time, then the Week ends because Time ran out', () => {
@@ -244,6 +245,12 @@ const inventedPack: DataPack = {
     },
   ],
   rentOwedLimit: 40,
+  rent: {
+    locationId: 'hall',
+    homeAmounts: { cabin: 12 },
+    intervalWeeks: 2,
+    garnishment: 3,
+  },
   food: {
     penaltyHours: 3,
     goods: [
@@ -467,8 +474,9 @@ describe('the Week ends (AC-004)', () => {
     setPlayer({ money: 300, foodWeeks: 1 });
     store().endTurn();
     expect(text('rent')).toMatch(new RegExp(`${RENT_COST}`));
+    expect(player().owedRent).toBe(RENT_COST);
     expect(text('food')).toMatch(/fed/i);
-    expect(report().cash).toBe(300 - RENT_COST);
+    expect(report().cash).toBe(300);
   });
 
   it('reports the Week that ended, why, and the cash after the effects', () => {
@@ -589,11 +597,13 @@ describe('endTurn', () => {
     expect(player().timeRemaining).toBe(MAX_TIME);
   });
 
-  it('charges rent every RENT_INTERVAL weeks', () => {
+  it('adds unpaid rent to the balance every RENT_INTERVAL weeks without taking cash', () => {
     setState({ currentWeek: RENT_INTERVAL });
     setPlayer({ money: 300 });
     store().endTurn();
-    expect(player().money).toBe(300 - RENT_COST);
+    expect(player().money).toBe(300);
+    expect(player().owedRent).toBe(RENT_COST);
+    expect(player().rentDueWeek).toBe(RENT_INTERVAL * 2);
   });
 
   it('does not charge rent in other weeks', () => {
@@ -603,11 +613,96 @@ describe('endTurn', () => {
     expect(player().money).toBe(300);
   });
 
-  it('loses the game when rent cannot be paid', () => {
+  it('does not lose until the rent owed reaches its data limit', () => {
     setState({ currentWeek: RENT_INTERVAL });
-    setPlayer({ money: RENT_COST - 1 });
+    setPlayer({
+      money: RENT_COST - 1,
+      owedRent: defaultPack.rentOwedLimit - RENT_COST,
+    });
     store().endTurn();
     expect(store().gameStatus).toBe('lost');
+    expect(player().owedRent).toBe(defaultPack.rentOwedLimit);
+  });
+
+  it('pays current rent at the Rent Office and advances the due Week', () => {
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({
+      locationId: defaultPack.rent.locationId,
+      money: RENT_COST + 10,
+    });
+    store().payRent();
+    expect(player()).toMatchObject({
+      money: 10,
+      rentDueWeek: RENT_INTERVAL * 2,
+      owedRent: 0,
+    });
+  });
+
+  it('refuses current rent when cash is short and leaves the rent balance for week end', () => {
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({
+      locationId: defaultPack.rent.locationId,
+      money: RENT_COST - 1,
+    });
+    store().payRent();
+    expect(player().money).toBe(RENT_COST - 1);
+    expect(player().rentDueWeek).toBe(RENT_INTERVAL);
+    expect(store().lastEvent).toMatch(/need/i);
+  });
+
+  it('grants a one Week extension and opens the office in the new due Week', () => {
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({ locationId: defaultPack.rent.locationId, money: 500 });
+    store().askForMoreTime();
+    expect(player()).toMatchObject({
+      rentDueWeek: RENT_INTERVAL + 1,
+      rentExtensionAskedWeek: RENT_INTERVAL,
+    });
+    store().askForMoreTime();
+    expect(player().rentDueWeek).toBe(RENT_INTERVAL + 1);
+    store().endTurn();
+    expect(player().owedRent).toBe(0);
+    expect(store().currentWeek).toBe(RENT_INTERVAL + 1);
+    setPlayer({ locationId: defaultPack.rent.locationId });
+    store().payRent();
+    expect(player().rentDueWeek).toBe(RENT_INTERVAL * 2 + 1);
+    expect(player().money).toBe(500 - RENT_COST);
+  });
+
+  it('garnishes each Work payment until the owed balance is cleared', () => {
+    setPlayer({
+      locationId: WORK,
+      jobId: ENTRY_JOB.id,
+      owedRent: 20,
+      money: 0,
+    });
+    store().work();
+    expect(player().money).toBe(
+      ENTRY_JOB.wage * ENTRY_JOB.shiftHours - defaultPack.rent.garnishment,
+    );
+    expect(player().owedRent).toBe(20 - defaultPack.rent.garnishment);
+    store().work();
+    expect(player().owedRent).toBe(0);
+  });
+
+  it('pays off the remaining balance at the Rent Office', () => {
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({
+      locationId: defaultPack.rent.locationId,
+      money: 150,
+      owedRent: 75,
+    });
+    store().payRentBalance();
+    expect(player()).toMatchObject({ money: 75, owedRent: 0 });
+  });
+
+  it('explains a closed Rent Office and allows waiting for the next due Week', () => {
+    setPlayer({ locationId: defaultPack.rent.locationId, owedRent: 75 });
+    store().payRentBalance();
+    expect(player().owedRent).toBe(75);
+    expect(store().lastEvent).toMatch(/closed/i);
+    store().endTurn();
+    expect(store().gameStatus).toBe('playing');
   });
 });
 
@@ -850,12 +945,13 @@ describe('winning and losing (AC-006)', () => {
     expect(store().gameStatus).toBe('lost');
   });
 
-  it('loses straight away when an action leaves the owed rent at the limit', () => {
+  it('garnishes the owed rent on Work before the loss threshold is reached', () => {
     wealthOnly(10);
     atWork();
     setPlayer({ owedRent: LIMIT });
     store().work();
-    expect(store().gameStatus).toBe('lost');
+    expect(store().gameStatus).toBe('playing');
+    expect(player().owedRent).toBe(LIMIT - defaultPack.rent.garnishment);
   });
 
   it('does not lose one dollar below the limit', () => {
@@ -867,9 +963,9 @@ describe('winning and losing (AC-006)', () => {
 
   it('loses even when the Goals are met at the same moment', () => {
     const target = wealthOnly(10);
-    atWork();
-    setPlayer({ money: target, owedRent: LIMIT });
-    store().work();
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({ money: target, owedRent: LIMIT - RENT_COST });
+    store().endTurn();
     expect(store().gameStatus).toBe('lost');
   });
 
@@ -1000,7 +1096,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(6);
+    expect(persisted().version).toBe(7);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -1070,6 +1166,23 @@ describe('persistence', () => {
       3,
     )) as { gameStatus: string };
     expect(migrated.gameStatus).toBe('won');
+  });
+
+  it('migrates a version 6 save to the next rent due Week', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const old = { ...player() } as Partial<Player>;
+    delete old.rentDueWeek;
+    delete old.rentExtensionAskedWeek;
+    delete old.rentPaidWeek;
+    const migrated = (await migrate?.(
+      { currentWeek: 5, players: [old], turnIndex: 0 },
+      6,
+    )) as { players: Player[] };
+    expect(migrated.players[0]).toMatchObject({
+      rentDueWeek: RENT_INTERVAL * 2,
+      rentExtensionAskedWeek: null,
+      rentPaidWeek: null,
+    });
   });
 
   it('does not touch localStorage until rehydrated', () => {
@@ -1197,7 +1310,7 @@ describe('inflation (AC-010)', () => {
     setState({ currentWeek: RENT_INTERVAL, priceLevel: 1.22 });
     setPlayer({ money: 300, foodWeeks: 1 });
     store().endTurn();
-    expect(report().cash).toBe(300 - RENT_COST);
+    expect(report().cash).toBe(300);
   });
 
   it('works with a replacement rule in an invented pack, with no rules change', () => {
@@ -1455,7 +1568,7 @@ describe('food (AC-007)', () => {
     setState({ currentWeek: RENT_INTERVAL });
     setPlayer({ money: 300 });
     store().endTurn();
-    expect(report().cash).toBe(300 - RENT_COST);
+    expect(report().cash).toBe(300);
   });
 });
 

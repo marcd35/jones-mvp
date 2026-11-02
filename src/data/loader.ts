@@ -122,6 +122,35 @@ export function validatePack(pack: DataPack): string[] {
     problems.push('Starting money must be at least 0.');
   if (!(pack.rentOwedLimit > 0))
     problems.push('The owed rent limit must be above 0.');
+  const rentOffice = locations.find((l) => l.id === pack.rent.locationId);
+  if (!rentOffice || rentOffice.closed) {
+    problems.push(
+      `The Rent Office Location "${pack.rent.locationId}" is missing or closed.`,
+    );
+  }
+  if (
+    !Number.isInteger(pack.rent.intervalWeeks) ||
+    pack.rent.intervalWeeks < 1
+  ) {
+    problems.push('Rent must be due at a whole Week interval of at least 1.');
+  }
+  if (!(pack.rent.garnishment >= 0)) {
+    problems.push('The rent garnishment must be at least 0.');
+  }
+  const homeRent = pack.rent.homeAmounts[pack.homeLocationId];
+  if (!(homeRent >= 0)) {
+    problems.push(
+      `Rent needs a non-negative amount for home Location "${pack.homeLocationId}".`,
+    );
+  }
+  for (const [homeId, amount] of Object.entries(pack.rent.homeAmounts)) {
+    if (!known.has(homeId)) {
+      problems.push(`Rent names unknown home Location "${homeId}".`);
+    }
+    if (!(amount >= 0)) {
+      problems.push(`Rent for home Location "${homeId}" must be non-negative.`);
+    }
+  }
 
   const { inflation } = pack;
   if (!(inflation.startLevel > 0))

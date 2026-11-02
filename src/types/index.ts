@@ -143,9 +143,17 @@ export interface DataPack {
   goalPointsBudget: number; // Goal points a Player splits across the Goals
   goals: GoalDef[]; // One row for each GoalId
   rentOwedLimit: number; // The owed rent balance that loses the game (DEC-023)
+  rent: RentRules;
   inflation: InflationRule;
   food: FoodRules;
   clothing: ClothingRules;
+}
+
+export interface RentRules {
+  locationId: string;
+  homeAmounts: Record<string, number>; // Fixed lease amount by home Location
+  intervalWeeks: number;
+  garnishment: number; // Deducted from each Work payment while rent is owed
 }
 
 export interface Player {
@@ -164,6 +172,9 @@ export interface Player {
   jobId: string | null; // Hired at an employment Location; null = no job
   goals: GoalPoints; // Goal points set at setup; 0 = no Goal in that category
   owedRent: number; // Rent owed and not yet paid (T-09 fills it)
+  rentDueWeek: number; // The next rent due Week; extensions move it one Week
+  rentExtensionAskedWeek: number | null; // Keeps the office open for the rest of an extension Week
+  rentPaidWeek: number | null; // The Week rent was paid, for the weekend report
 }
 
 // The effects of a Week's end, in the fixed order they are applied and listed
