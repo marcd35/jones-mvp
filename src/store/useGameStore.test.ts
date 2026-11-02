@@ -191,7 +191,10 @@ const inventedPack: DataPack = {
       title: 'Digger',
       wage: 10,
       locationId: 'mine',
+      careerId: 'mine',
       educationRequired: 0,
+      educationLabel: 'None',
+      experienceRequired: 0,
       shiftHours: 5,
       workTimeHours: 2,
     },
@@ -510,6 +513,64 @@ describe('hire', () => {
     setPlayer({ educationLevel: BETTER_JOB.educationRequired });
     store().hire(BETTER_JOB.id);
     expect(player().jobId).toBe(BETTER_JOB.id);
+  });
+
+  it('requires experience in the listed Career and snapshots the scaled wage', () => {
+    const job = defaultPack.jobs.find(
+      (candidate) => candidate.id === 'qt-salesperson',
+    )!;
+    setPlayer({ educationLevel: job.educationRequired });
+    setState({ priceLevel: 1.25 });
+
+    store().hire(job.id);
+    expect(player().jobId).toBeNull();
+    expect(store().lastEvent).toMatch(/experience/i);
+
+    setPlayer({ careerExperience: { [job.careerId]: job.experienceRequired } });
+    store().hire(job.id);
+    expect(player()).toMatchObject({
+      jobId: job.id,
+      heldWage: scalePrice(job.wage, 1.25),
+    });
+  });
+
+  it('refuses a mismatched education path and accepts the required path', () => {
+    const job = defaultPack.jobs.find(
+      (candidate) => candidate.id === 'socket-repair',
+    )!;
+    setPlayer({
+      educationLevel: job.educationRequired,
+      educationPath: 'college',
+    });
+
+    store().hire(job.id);
+    expect(player().jobId).toBeNull();
+    expect(store().lastEvent).toMatch(/technical education path/i);
+
+    setPlayer({ educationPath: 'technical' });
+    store().hire(job.id);
+    expect(player().jobId).toBe(job.id);
+  });
+
+  it('keeps the hired wage after the price level changes', () => {
+    const job = ENTRY_JOB;
+    setState({ priceLevel: 1.25 });
+    store().hire(job.id);
+    const hiredWage = scalePrice(job.wage, 1.25);
+    setState({
+      priceLevel: 0.8,
+      players: [
+        {
+          ...player(),
+          locationId: job.locationId,
+        },
+      ],
+    });
+
+    store().work();
+
+    expect(player().heldWage).toBe(hiredWage);
+    expect(player().money).toBe(STARTING_MONEY + hiredWage * job.shiftHours);
   });
 
   it('says so when the Player already has the job', () => {
@@ -1244,7 +1305,44 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(9);
+    expect(persisted().version).toBe(10);
+  });
+
+  it('migrates a version 9 job save to career experience and its previous held wage', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const oldPlayer = { ...player(), jobId: ENTRY_JOB.id } as Partial<Player>;
+    delete oldPlayer.heldWage;
+    delete oldPlayer.careerExperience;
+    const migrated = (await migrate?.(
+      { players: [oldPlayer], priceLevel: 1.25, turnIndex: 0 },
+      9,
+    )) as { players: Player[] };
+
+    expect(migrated.players[0]).toMatchObject({
+      jobId: ENTRY_JOB.id,
+      heldWage: ENTRY_JOB.wage,
+      careerExperience: {},
+    });
+  });
+
+  it('maps the retired Shift Manager save to the approved Monolith Manager role', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const oldPlayer = {
+      ...player(),
+      jobId: 'shift-manager',
+    } as Partial<Player>;
+    delete oldPlayer.heldWage;
+    delete oldPlayer.careerExperience;
+    const migrated = (await migrate?.(
+      { players: [oldPlayer], priceLevel: 1.25, turnIndex: 0 },
+      9,
+    )) as { players: Player[] };
+
+    expect(migrated.players[0]).toMatchObject({
+      jobId: 'monolith-manager',
+      heldWage: 15,
+      careerExperience: {},
+    });
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -1444,13 +1542,14 @@ describe('inflation (AC-010)', () => {
     expect(player().money).toBe(70);
   });
 
-  it('does not scale wages', () => {
+  it('scales wages when the Player is hired', () => {
     setState({ priceLevel: 1.22 });
-    employ(ENTRY_JOB.id);
+    setPlayer({ locationId: EMPLOYMENT });
+    store().hire(ENTRY_JOB.id);
     setPlayer({ locationId: WORK });
     store().work();
     expect(player().money).toBe(
-      STARTING_MONEY + ENTRY_JOB.wage * ENTRY_JOB.shiftHours,
+      STARTING_MONEY + scalePrice(ENTRY_JOB.wage, 1.22) * ENTRY_JOB.shiftHours,
     );
   });
 
@@ -1872,14 +1971,14 @@ describe('clothing (AC-008)', () => {
     expect(store().lastEvent).toMatch(/worn out/i);
   });
 
-  it('blocks hiring into a job that needs a tier while the clothes are worn', () => {
+  it('allows hiring in worn clothes because v1 jobs have no clothing tier', () => {
     setPlayer({
       locationId: EMPLOYMENT,
       clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks },
     });
     store().hire(ENTRY_JOB.id);
-    expect(player().jobId).toBeNull();
-    expect(store().lastEvent).toMatch(/worn out/i);
+    expect(player().jobId).toBe(ENTRY_JOB.id);
+    expect(store().lastEvent).toMatch(/Hired as Cook/);
   });
 
   it('sells each tier at QT Clothing for the scaled price, new', () => {
@@ -1961,7 +2060,10 @@ describe('food and clothing in an invented pack, with no rules change', () => {
         title: 'Guard',
         wage: 20,
         locationId: 'mine',
+        careerId: 'mine',
         educationRequired: 0,
+        educationLabel: 'None',
+        experienceRequired: 0,
         shiftHours: 4,
         workTimeHours: 1,
         clothingRequired: 'cloak',

@@ -1,6 +1,6 @@
 # Education and jobs reference
 
-**Status: draft for author review.** T-02 / issue #4. This reference uses V1 spec r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) remain blocked until the author approves this reference.
+**Status: author-approved on 2026-11-02.** T-02 / issue #4. This reference uses V1 spec r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) may proceed.
 
 ## Author decisions and source priority
 
@@ -89,9 +89,9 @@ V1 does not fire a Player automatically. T-01's earlier “work habits” warnin
 
 ## Data-pack mapping
 
-T-03's `Job` type currently has `id`, `title`, base hourly `wage`, employer `locationId`, numeric `educationRequired`, `shiftHours`, `workTimeHours`, and optional `clothingRequired`. It does not yet represent experience or career identity.
+T-10a (#28) extends `Job` with `careerId`, an optional `educationPathRequired`, a human-readable `educationLabel`, and an `experienceRequired` threshold alongside `id`, `title`, base hourly `wage`, employer `locationId`, numeric `educationRequired`, `shiftHours` and `workTimeHours`. V1 jobs omit `clothingRequired`; no rung has a clothing tier.
 
-T-10 should extend the data model with a career ID and an experience threshold for each rung. The Player state should retain experience by career so switching jobs does not discard it. The current-price job listing should scale the base wage with the price level; hiring snapshots that displayed wage as the held wage. Omit `clothingRequired` for v1; the author decided there is no per-rung minimum clothing tier. Keep the worn/torn-clothing refusal as a global Work rule. T-11 should put course names, prerequisites, fees, class counts and Time costs in education data, not rules code. The rules should continue to consume the data pack rather than hard-code employers, courses, wages or requirements (DEC-007 / AC-014).
+The Player state retains experience in `careerExperience`, keyed by career ID, so switching careers does not discard points. `educationPath` records the technical or college path; T-11 (#31) sets it when a course is completed. The Employment Office scales the base wage with the current price level; hiring snapshots that offer as `heldWage` (DEC-029). Successful Work adds one career point under T-10b (#29). Keep worn/torn-clothing refusal as a global Work rule. T-11 should put course names, prerequisites, fees, class counts and Time costs in education data, not rules code. The rules should continue to consume the data pack rather than hard-code employers, courses, wages or requirements (DEC-007 / AC-014).
 
 ## Sources and confidence
 
@@ -101,4 +101,4 @@ T-10 should extend the data model with a career ID and an experience threshold f
 - T-03's current `Job` type in `src/types/index.ts`.
 - Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10); no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers.
 
-**Author review gate:** the author must review and approve this reference before T-10 or T-11 proceeds.
+**Author review gate:** passed; the author approved this reference on 2026-11-02.

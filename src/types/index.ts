@@ -22,6 +22,8 @@ export type GameStatus = 'setup' | 'playing' | 'won' | 'lost';
 // The four Goal categories (DEC-009).
 export type GoalId = 'wealth' | 'happiness' | 'education' | 'career';
 
+export type EducationPath = 'technical' | 'college';
+
 // Goal points spent on each Goal.
 export type GoalPoints = Record<GoalId, number>;
 
@@ -41,7 +43,11 @@ export interface Job {
   title: string;
   wage: number; // Hourly wage
   locationId: string;
+  careerId: string; // Jobs at one employer share career experience
   educationRequired: number; // 0 = none
+  educationPathRequired?: EducationPath; // Absent = either education path
+  educationLabel: string; // Human-readable approved reference requirement
+  experienceRequired: number; // Career-specific experience points; 0 = none
   shiftHours: number; // Hours of pay one Work action earns (DEC-026)
   workTimeHours: number; // Time one Work action costs (DEC-022, DEC-026)
   // The lowest clothing tier the job asks for (a ClothingTier id); worn clothes
@@ -187,6 +193,7 @@ export interface Player {
   money: number;
   timeRemaining: number; // Hours left this Turn (0-12, may be fractional)
   educationLevel: number;
+  educationPath: EducationPath | null;
   // Weeks of food in hand, this Week included: above 0 means this Week is
   // covered. One is used up when the Week ends.
   foodWeeks: number;
@@ -196,6 +203,8 @@ export interface Player {
   clothes: { tierId: string; weeksWorn: number } | null;
   locationId: string;
   jobId: string | null; // Hired at an employment Location; null = no job
+  heldWage: number | null; // Hourly wage fixed when hired; null when unemployed
+  careerExperience: Record<string, number>; // Experience kept per Career
   goals: GoalPoints; // Goal points set at setup; 0 = no Goal in that category
   owedRent: number; // Rent owed and not yet paid (T-09 fills it)
   rentDueWeek: number; // The next rent due Week; extensions move it one Week
