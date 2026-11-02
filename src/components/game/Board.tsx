@@ -20,7 +20,11 @@ const place = (row: number, col: number, rowSpan = 1, colSpan = 1) => ({
 export function Board({ pack = defaultPack }: { pack?: DataPack }) {
   const player = useGameStore((s) => s.players[s.turnIndex]);
   const walkTo = useGameStore((s) => s.walkTo);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const reportPending = useGameStore((s) => s.weekendReport !== null);
+  // The Location whose screen is open. It shuts by itself when the Player is
+  // no longer there (the Week ended and sent them home).
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const isModalOpen = openAt === player.locationId && !reportPending;
 
   const problems = validatePack(pack);
   const { layout, locations } = pack;
@@ -59,8 +63,11 @@ export function Board({ pack = defaultPack }: { pack?: DataPack }) {
   }
 
   const handleSelect = (locationId: string) => {
-    if (locationId === player.locationId) setIsModalOpen(true);
-    else walkTo(locationId);
+    if (locationId === player.locationId) setOpenAt(locationId);
+    else {
+      setOpenAt(null);
+      walkTo(locationId);
+    }
   };
 
   const shown = ringCoordinates(size)[shownIndex] ?? [0, 0];
@@ -148,10 +155,7 @@ export function Board({ pack = defaultPack }: { pack?: DataPack }) {
         </div>
       </div>
 
-      <LocationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      <LocationModal isOpen={isModalOpen} onClose={() => setOpenAt(null)} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Location, LocationType } from '@/types';
 import {
+  Briefcase,
   Building2,
   GraduationCap,
   Home,
@@ -18,6 +19,7 @@ interface LocationTileProps {
 
 const ICONS: Record<LocationType, typeof MapPin> = {
   work: Building2,
+  employment: Briefcase,
   education: GraduationCap,
   housing: Home,
   store: ShoppingCart,

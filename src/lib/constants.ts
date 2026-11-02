@@ -8,5 +8,4 @@ export const RENT_INTERVAL = 4; // Weeks between rent payments
 export const MEAL_HOURS = 1; // Time spent buying and eating a meal
 export const CLASS_HOURS = 4; // Time spent in one class
 export const STARVATION_TIME_PENALTY = 4; // Hours lost the week after skipping food
-export const WORK_SHIFTS = [4, 8]; // Shift lengths offered, in hours
 export const WIN_JOB_ID = 'shift-manager'; // Must hold this job to win

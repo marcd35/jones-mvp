@@ -7,8 +7,8 @@ import {
   FOOD_COST,
   MEAL_HOURS,
   TUITION_COST,
-  WORK_SHIFTS,
 } from '@/lib/constants';
+import { formatHours } from './TimeDial';
 
 interface LocationModalProps {
   isOpen: boolean;
@@ -23,7 +23,9 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     timeRemaining,
     educationLevel,
     hasEaten,
+    jobId,
   } = player;
+  const hire = useGameStore((s) => s.hire);
   const work = useGameStore((s) => s.work);
   const eat = useGameStore((s) => s.eat);
   const attendClass = useGameStore((s) => s.attendClass);
@@ -36,6 +38,8 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const localJobs = defaultPack.jobs.filter(
     (j) => j.locationId === currentLocationId,
   );
+  const locationName = (id: string) =>
+    defaultPack.locations.find((l) => l.id === id)?.name ?? id;
 
   if (!currentLocation) return null;
 
@@ -47,37 +51,70 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
         {/* === WORK INTERACTION === */}
         {currentLocation.type === 'work' && (
           <div className="space-y-3">
-            {localJobs.map((job) => {
+            <p className="flex justify-between text-sm text-slate-300">
+              <span>Cash</span>
+              <span className="font-mono font-bold text-white">${money}</span>
+            </p>
+            {localJobs.map((job) => (
+              <div
+                key={job.id}
+                className="rounded border border-slate-700 bg-slate-800 p-3"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-bold text-white">{job.title}</span>
+                  <span className="text-green-400">${job.wage}/hr</span>
+                </div>
+                {jobId === job.id ? (
+                  <Button
+                    onClick={() => work()}
+                    disabled={timeRemaining < job.workTimeHours}
+                    className="min-h-11 w-full text-sm"
+                  >
+                    Work: +${job.wage * job.shiftHours} for{' '}
+                    {formatHours(job.workTimeHours)} hrs
+                  </Button>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Not your job. Get hired at an employment office.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* === EMPLOYMENT INTERACTION === */}
+        {currentLocation.type === 'employment' && (
+          <div className="space-y-3">
+            {defaultPack.jobs.map((job) => {
               const isQualified = educationLevel >= job.educationRequired;
               return (
                 <div
                   key={job.id}
                   className="rounded border border-slate-700 bg-slate-800 p-3"
                 >
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className="font-bold text-white">{job.title}</span>
                     <span className="text-green-400">${job.wage}/hr</span>
                   </div>
+                  <p className="mb-2 text-xs text-slate-400">
+                    {locationName(job.locationId)}: ${job.wage * job.shiftHours}{' '}
+                    a shift
+                  </p>
                   {!isQualified ? (
-                    <p className="mb-2 text-xs text-red-400">
+                    <p className="text-xs text-red-400">
                       Requires Education Lvl {job.educationRequired}
                     </p>
+                  ) : jobId === job.id ? (
+                    <p className="text-xs font-bold text-green-400">Your job</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {WORK_SHIFTS.map((hours) => (
-                        <Button
-                          key={hours}
-                          onClick={() => {
-                            work(job.id, hours);
-                            onClose();
-                          }}
-                          disabled={timeRemaining < hours}
-                          className="text-sm"
-                        >
-                          Work {hours}hrs
-                        </Button>
-                      ))}
-                    </div>
+                    <Button
+                      onClick={() => hire(job.id)}
+                      className="min-h-11 w-full text-sm"
+                      aria-label={`Take the ${job.title} job`}
+                    >
+                      Take job
+                    </Button>
                   )}
                 </div>
               );

@@ -26,19 +26,115 @@ describe('game page', () => {
     );
   });
 
-  it('plays a work shift: travel, enter, work, see the toast', async () => {
+  it('plays a work shift: walk, get hired, walk to work, work, see money', async () => {
     render(<Home />);
-    await userEvent.click(tileButton('Monolith Burger'));
-    expect(screen.getByText('11.1 hours left')).toBeInTheDocument();
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+    const office = screen.getByRole('dialog', { name: 'Employment Office' });
+    expect(office).toHaveTextContent('Requires Education Lvl 1'); // locked rung
+    await userEvent.click(
+      within(office).getByRole('button', { name: 'Take the Cook job' }),
+    );
+    expect(player().jobId).toBe('cook');
+    expect(office).toHaveTextContent('Your job');
+    await userEvent.click(
+      within(office).getByRole('button', { name: 'Leave' }),
+    );
 
+    await userEvent.click(tileButton('Monolith Burger'));
     await userEvent.click(tileButton('Monolith Burger'));
     const dialog = screen.getByRole('dialog', { name: 'Monolith Burger' });
-    expect(dialog).toHaveTextContent('Requires Education Lvl 1');
+    expect(dialog).toHaveTextContent(`$${STARTING_MONEY}`);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Work 4hrs' }));
+    const timeBefore = player().timeRemaining;
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: /^Work: \+\$32 for 1\.2 hrs/,
+      }),
+    );
+    expect(player().timeRemaining).toBeCloseTo(timeBefore - 1.2, 5);
+    // The screen stays open and shows the new cash.
+    expect(dialog).toHaveTextContent(`$${STARTING_MONEY + 32}`);
+    expect(screen.getByRole('status')).toHaveTextContent(/Earned \$32/);
+  });
+
+  it('tells the Player when Work is not their job or they cannot afford the Time', async () => {
+    render(<Home />);
+    await userEvent.click(tileButton('Monolith Burger'));
+    await userEvent.click(tileButton('Monolith Burger'));
+    const dialog = screen.getByRole('dialog', { name: 'Monolith Burger' });
+    expect(within(dialog).queryByRole('button', { name: /Work/ })).toBeNull();
+    expect(dialog).toHaveTextContent(/Get hired at an employment office/);
+
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [{ ...st.players[0], jobId: 'cook', timeRemaining: 1 }],
+      })),
+    );
+    expect(within(dialog).getByRole('button', { name: /Work/ })).toBeDisabled();
+  });
+
+  it('shows the weekend report when the Week ends, then starts the next Turn at home', async () => {
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [
+          { ...st.players[0], jobId: 'cook', locationId: 'monolith-burger' },
+        ],
+      })),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+
+    const report = screen.getByRole('dialog', { name: /weekend report/i });
+    expect(report).toHaveTextContent('You ended the Week.');
+    const labels = within(report)
+      .getAllByRole('listitem')
+      .map((li) => li.firstElementChild?.textContent);
+    expect(labels).toEqual([
+      'Food',
+      'Clothing wear',
+      'Rent due',
+      'Inflation step',
+      'Newspaper',
+    ]);
+
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByText(`$${STARTING_MONEY + 6 * 4}`)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/Worked 4 hrs/);
+    expect(player().locationId).toBe('low-cost-housing');
+    expect(screen.getByText('8 hours left')).toBeInTheDocument(); // hungry
+  });
+
+  it('ends the Week by itself when Work uses the last of the Time, closing the Monolith screen', async () => {
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [
+          {
+            ...st.players[0],
+            jobId: 'cook',
+            locationId: 'monolith-burger',
+            timeRemaining: 1.2,
+          },
+        ],
+      })),
+    );
+    await userEvent.click(tileButton('Monolith Burger'));
+    await userEvent.click(screen.getByRole('button', { name: /^Work/ }));
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Monolith Burger' }),
+    ).toBeNull();
+    const report = screen.getByRole('dialog', { name: /weekend report/i });
+    expect(report).toHaveTextContent('You ran out of Time.');
+    expect(report).toHaveTextContent(`$${STARTING_MONEY + 32}`);
+
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
+    // Back at home: the Monolith screen does not reopen by itself.
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('disables the meal button once the weekly meal is eaten', async () => {

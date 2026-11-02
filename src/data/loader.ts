@@ -1,4 +1,5 @@
 import { ringCoordinates } from '@/lib/board';
+import { MAX_TIME } from '@/lib/constants';
 import type { DataPack } from '@/types';
 
 // Returns a readable message for every problem in the pack; empty when valid.
@@ -48,10 +49,34 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   // Other tables.
+  const jobIds = new Set<string>();
   for (const job of pack.jobs) {
-    if (!known.has(job.locationId)) {
+    if (jobIds.has(job.id)) problems.push(`Job "${job.id}" is defined twice.`);
+    jobIds.add(job.id);
+    const at = locations.find((l) => l.id === job.locationId);
+    if (!at) {
       problems.push(
         `Job "${job.id}" is at unknown Location "${job.locationId}".`,
+      );
+    } else if (at.closed) {
+      problems.push(`Job "${job.id}" is at closed Location "${at.id}".`);
+    }
+    if (!(job.wage >= 0))
+      problems.push(`Job "${job.id}" needs a wage of at least 0.`);
+    if (!(job.shiftHours > 0))
+      problems.push(`Job "${job.id}" needs a shift of more than 0 paid hours.`);
+    if (!(job.workTimeHours > 0)) {
+      problems.push(
+        `Job "${job.id}" needs a Work Time cost of more than 0 hours.`,
+      );
+    } else if (job.workTimeHours > MAX_TIME) {
+      problems.push(
+        `Job "${job.id}" has a Work Time cost of ${job.workTimeHours} hours, more than a Week of ${MAX_TIME}.`,
+      );
+    }
+    if (!(job.educationRequired >= 0)) {
+      problems.push(
+        `Job "${job.id}" needs an education requirement of at least 0.`,
       );
     }
   }
