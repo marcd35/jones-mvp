@@ -167,5 +167,5 @@ export const useGameStore = create<GameState & GameActions>()(
       currentJobId: state.currentJobId,
       gameStatus: state.gameStatus,
     }),
-  })
+  }),
 );
