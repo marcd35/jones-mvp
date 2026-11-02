@@ -8,16 +8,17 @@ export const GOAL_POINTS_BUDGET = 200;
 // `perPoint` below is a PLACEHOLDER until the balance pass (T-15); the target
 // is points x perPoint, rounded up.
 //
-// Default split: the whole budget starts on wealth (a $8000 target at 200
-// points). Happiness, education and career have no measure yet, so a Goal
-// with points on any of them can never be met and a spread default could not
-// be won. T-10 to T-12 add those measures; they should restore a spread
-// default (the original was 50 on each Goal, a $2000 wealth target).
+// Default split: 50 points on wealth (a $2000 target, as in the original) and
+// none on the rest; the other 150 points start unspent. Happiness, education
+// and career have no measure yet, so a Goal with points on any of them can
+// never be met and a spread default could not be won. T-10 to T-12 add those
+// measures; they should restore a spread default (the original was 50 on each
+// Goal).
 export const GOALS: GoalDef[] = [
   {
     id: 'wealth',
     label: 'Wealth',
-    defaultPoints: 200,
+    defaultPoints: 50,
     perPoint: 40,
     prefix: '$',
     suffix: '',

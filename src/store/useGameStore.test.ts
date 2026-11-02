@@ -820,7 +820,9 @@ describe('winning and losing (AC-006)', () => {
     useGameStore.setState(useGameStore.getInitialState(), true);
     store().startGame(); // untouched defaults from the real pack
     const target = Math.ceil(player().goals.wealth * WEALTH.perPoint);
+    expect(target).toBe(2000);
     expect(player().goals).toMatchObject({
+      wealth: 50,
       happiness: 0,
       education: 0,
       career: 0,

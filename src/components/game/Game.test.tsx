@@ -223,19 +223,19 @@ describe('Goals setup screen (AC-005)', () => {
   it('shows four Goal sliders over the data budget, each with its target', () => {
     render(<Home />);
     expect(screen.getAllByRole('slider')).toHaveLength(4);
-    expect(pointsLeft()).toHaveTextContent('0 left of 200');
+    expect(pointsLeft()).toHaveTextContent('150 left of 200');
     expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
-      'Target: $8,000',
+      'Target: $2,000',
     );
   });
 
-  // Until T-10 to T-12 measure the other Goals, the whole budget starts on
-  // wealth so the default setup can be won.
-  it('starts with every point on Wealth and none on the unmeasured Goals', () => {
+  // Until T-10 to T-12 measure the other Goals, only wealth starts with
+  // points so the default setup can be won.
+  it('starts with 50 points on Wealth and none on the unmeasured Goals', () => {
     render(<Home />);
-    expect(slider('Wealth').value).toBe('200');
+    expect(slider('Wealth').value).toBe('50');
     expect(screen.getByTestId('goal-wealth-points')).toHaveTextContent(
-      '200 points',
+      '50 points',
     );
     for (const label of ['Happiness', 'Education', 'Career']) {
       expect(slider(label).value).toBe('0');
@@ -250,7 +250,6 @@ describe('Goals setup screen (AC-005)', () => {
 
   it('moves the target with the points, from the data table', () => {
     render(<Home />);
-    set('Education', 0);
     set('Wealth', 100);
     expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
       'Target: $4,000',
@@ -258,20 +257,17 @@ describe('Goals setup screen (AC-005)', () => {
     expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
       'No target',
     );
-    expect(pointsLeft()).toHaveTextContent('0 left of 200');
+    expect(pointsLeft()).toHaveTextContent('100 left of 200');
   });
 
   it('never lets the sliders add up to more than the budget', () => {
     render(<Home />);
-    // Wealth holds all 200 points, so Career has no room to rise.
-    set('Career', 100);
-    expect(slider('Career').value).toBe('0');
-    set('Wealth', 50);
-    set('Happiness', 100);
-    // Happiness holds 100 and Wealth 50, so Career gets the remaining 50.
-    set('Career', 100);
-    expect(slider('Career').value).toBe('50');
+    // Wealth holds 50 points, so Career can take at most the other 150.
+    set('Career', 200);
+    expect(slider('Career').value).toBe('150');
     expect(pointsLeft()).toHaveTextContent('0 left of 200');
+    set('Wealth', 100);
+    expect(slider('Wealth').value).toBe('50');
   });
 
   it('warns about a Goal that nothing measures yet', () => {
