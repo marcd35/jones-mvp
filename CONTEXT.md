@@ -54,3 +54,11 @@ _Avoid_: Summary, receipt
 **Newspaper**:
 The full issue sold to a Player at Black's Market, carrying the current Week's headline.
 _Avoid_: Headline (for the full issue)
+
+**Career**:
+A data-defined set of jobs that shares experience points.
+_Avoid_: Job ladder (for an individual role)
+
+**Career experience**:
+Points a Player earns by successfully working in a Career. Each Career retains its own points.
+_Avoid_: Skills
