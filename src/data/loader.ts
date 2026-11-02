@@ -189,6 +189,7 @@ export function validatePack(pack: DataPack): string[] {
   validateHouseholdGoods(pack, problems);
   validateClothing(pack, problems);
   validateNewspaper(pack, problems);
+  validateEducation(pack, problems);
 
   const costs = Object.entries(pack.walkingCosts);
   if (costs.length === 0) problems.push('Walking-cost table is empty.');
@@ -201,6 +202,82 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   return problems;
+}
+
+function validateEducation(pack: DataPack, problems: string[]) {
+  const { education } = pack;
+  const school = pack.locations.find(
+    (location) => location.id === education.locationId,
+  );
+  if (!school || school.closed || school.type !== 'education') {
+    problems.push(
+      `Education courses need an open education Location "${education.locationId}".`,
+    );
+  }
+  if (!(education.enrollmentFee >= 0)) {
+    problems.push('The course enrollment fee must be at least 0.');
+  }
+  if (
+    !['observed', 'approved-default'].includes(education.enrollmentFeeDataBasis)
+  ) {
+    problems.push(
+      'The course enrollment fee needs an observed or approved-default data basis.',
+    );
+  }
+  if (!(
+    education.enrollmentTimeHours >= 0 &&
+    education.enrollmentTimeHours <= MAX_TIME
+  )) {
+    problems.push(
+      `Course enrollment Time must be between 0 and ${MAX_TIME} hours.`,
+    );
+  }
+  if (
+    !['observed', 'approved-default'].includes(
+      education.enrollmentTimeDataBasis,
+    )
+  ) {
+    problems.push(
+      'Course enrollment Time needs an observed or approved-default data basis.',
+    );
+  }
+  if (education.courses.length === 0) {
+    problems.push('Education needs at least one course.');
+  }
+  const ids = new Set<string>();
+  for (const course of education.courses) {
+    const what = `Course "${course.id}"`;
+    if (ids.has(course.id)) problems.push(`${what} is defined twice.`);
+    ids.add(course.id);
+    if (course.id.trim().length === 0) {
+      problems.push('Education course ids must not be empty.');
+    }
+    if (course.name.trim().length === 0) {
+      problems.push(`${what} needs a name.`);
+    }
+    if (!['technical', 'college'].includes(course.path)) {
+      problems.push(`${what} needs a technical or college path.`);
+    }
+    if (![1, 2].includes(course.level)) {
+      problems.push(`${what} needs a v1 education level of 1 or 2.`);
+    }
+    if (
+      !Number.isInteger(course.classesRequired) ||
+      course.classesRequired < 1
+    ) {
+      problems.push(`${what} needs a whole class count of at least 1.`);
+    }
+    if (!(course.classTimeHours > 0 && course.classTimeHours <= MAX_TIME)) {
+      problems.push(
+        `${what} needs class Time above 0 and no more than ${MAX_TIME} hours.`,
+      );
+    }
+    if (!['observed', 'approved-default'].includes(course.dataBasis)) {
+      problems.push(
+        `${what} needs an observed or approved-default data basis.`,
+      );
+    }
+  }
 }
 
 function validateHouseholdGoods(pack: DataPack, problems: string[]) {

@@ -11,7 +11,7 @@ import {
   WeekEndReason,
   WeekendEffectId,
 } from '@/types';
-import { CLASS_HOURS, MAX_TIME, TUITION_COST } from '@/lib/constants';
+import { MAX_TIME } from '@/lib/constants';
 import { defaultPack } from '@/data';
 import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
@@ -46,6 +46,7 @@ interface GameActions {
   buyHouseholdGood: (goodId: string) => void;
   buyClothes: (tierId: string) => void;
   buyNewspaper: () => void;
+  enrollCourse: (courseId: string) => void;
   attendClass: () => void;
   payRent: () => void;
   payRentBalance: () => void;
@@ -63,7 +64,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 10;
+const STORAGE_VERSION = 11;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -87,6 +88,9 @@ const newPlayer = (pack: DataPack): Player => ({
   timeRemaining: MAX_TIME,
   educationLevel: 0,
   educationPath: null,
+  enrolledCourseId: null,
+  courseClassesCompleted: 0,
+  completedCourseIds: [],
   foodWeeks: 0,
   ownedGoods: [],
   isStarving: false,
@@ -670,29 +674,109 @@ const gameStoreCreator =
         });
       },
 
-      attendClass: () => {
+      enrollCourse: (courseId) => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
-        const { money, timeRemaining, locationId } = activePlayer(state);
-        if (locationOf(locationId)?.type !== 'education') return;
-        const tuition = priceOf(TUITION_COST);
-        if (money < tuition || timeRemaining < CLASS_HOURS) {
-          notify(`Need $${tuition} and ${CLASS_HOURS} hours for school.`);
+        const player = activePlayer(state);
+        if (player.locationId !== pack.education.locationId) return;
+        const course = pack.education.courses.find(
+          (item) => item.id === courseId,
+        );
+        if (!course) return;
+        if (player.enrolledCourseId !== null) {
+          notify('Finish the current course before enrolling in another.');
+          return;
+        }
+        if (
+          player.completedCourseIds.includes(course.id) ||
+          course.level !== player.educationLevel + 1
+        ) {
+          notify(
+            `${course.name} is not the next course on your education path.`,
+          );
+          return;
+        }
+        if (
+          player.educationPath !== null &&
+          player.educationPath !== course.path
+        ) {
+          notify(
+            `Your education path is ${player.educationPath}; ${course.name} is on the ${course.path} path.`,
+          );
+          return;
+        }
+        const fee = priceOf(pack.education.enrollmentFee);
+        const enrollmentTime = pack.education.enrollmentTimeHours;
+        if (player.money < fee || player.timeRemaining < enrollmentTime) {
+          notify(
+            `Need $${fee} and ${enrollmentTime} hours to enroll in ${course.name}.`,
+          );
           return;
         }
 
         set((s) => {
-          const player = activePlayer(s);
+          const active = activePlayer(s);
           return settle(
             s,
             {
               players: patchActive(s, {
-                money: player.money - tuition,
-                timeRemaining: roundHours(player.timeRemaining - CLASS_HOURS),
-                educationLevel: player.educationLevel + 1,
+                money: active.money - fee,
+                timeRemaining: roundHours(
+                  active.timeRemaining - enrollmentTime,
+                ),
+                enrolledCourseId: course.id,
+                courseClassesCompleted: 0,
               }),
             },
-            'Education Level Increased! You can now apply for better jobs.',
+            `Enrolled in ${course.name} for $${fee}.`,
+          );
+        });
+      },
+
+      attendClass: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        if (player.locationId !== pack.education.locationId) return;
+        const course = pack.education.courses.find(
+          (item) => item.id === player.enrolledCourseId,
+        );
+        if (!course) {
+          notify('Enroll in a course before attending class.');
+          return;
+        }
+        if (player.timeRemaining < course.classTimeHours) {
+          notify(`Need ${course.classTimeHours} hours to attend class.`);
+          return;
+        }
+
+        const classesCompleted = player.courseClassesCompleted + 1;
+        const courseComplete = classesCompleted >= course.classesRequired;
+        set((s) => {
+          const active = activePlayer(s);
+          return settle(
+            s,
+            {
+              players: patchActive(s, {
+                timeRemaining: roundHours(
+                  active.timeRemaining - course.classTimeHours,
+                ),
+                educationLevel: courseComplete
+                  ? course.level
+                  : active.educationLevel,
+                educationPath: courseComplete
+                  ? course.path
+                  : active.educationPath,
+                enrolledCourseId: courseComplete ? null : course.id,
+                courseClassesCompleted: courseComplete ? 0 : classesCompleted,
+                completedCourseIds: courseComplete
+                  ? [...active.completedCourseIds, course.id]
+                  : active.completedCourseIds,
+              }),
+            },
+            courseComplete
+              ? `Completed ${course.name}. Education level ${course.level} on the ${course.path} path.`
+              : `Attended class for ${course.name}. ${classesCompleted} of ${course.classesRequired} classes complete.`,
           );
         });
       },
@@ -949,6 +1033,14 @@ export const useGameStore = create<GameStore>()(
               p.heldWage ?? (legacyShiftManager ? 15 : (job?.wage ?? null)),
           };
         });
+      }
+      if (version < 11) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          enrolledCourseId: p.enrolledCourseId ?? null,
+          courseClassesCompleted: p.courseClassesCompleted ?? 0,
+          completedCourseIds: p.completedCourseIds ?? [],
+        }));
       }
       return state as never;
     },

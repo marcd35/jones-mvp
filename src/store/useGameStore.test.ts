@@ -10,13 +10,16 @@ import {
   ownedGoodsHappiness,
 } from '@/lib/household-goods';
 import type { DataPack, GameState, Player } from '@/types';
-import { CLASS_HOURS, MAX_TIME, TUITION_COST } from '@/lib/constants';
+import { MAX_TIME } from '@/lib/constants';
 
 const HOME = defaultPack.homeLocationId;
 const ENTRY_JOB = defaultPack.jobs[0];
 // The job above the entry one: it asks for education.
 const BETTER_JOB = defaultPack.jobs.find((j) => j.educationRequired > 0)!;
 const STARTING_MONEY = defaultPack.startingMoney;
+const TRADE_SCHOOL = defaultPack.education.courses.find(
+  (course) => course.id === 'trade-school',
+)!;
 const RENT_COST = defaultPack.rent.homeAmounts[HOME];
 const RENT_INTERVAL = defaultPack.rent.intervalWeeks;
 const WORK = ENTRY_JOB.locationId;
@@ -176,6 +179,12 @@ const inventedPack: DataPack = {
     { id: 'cabin', name: 'Cabin', type: 'housing', description: 'Home.' },
     { id: 'mine', name: 'Mine', type: 'work', description: 'Dig.' },
     { id: 'shop', name: 'Shop', type: 'store', description: 'Buy.' },
+    {
+      id: 'school',
+      name: 'School',
+      type: 'education',
+      description: 'Study.',
+    },
     { id: 'hall', name: 'Hall', type: 'employment', description: 'Hire.' },
     {
       id: 'vault',
@@ -199,13 +208,28 @@ const inventedPack: DataPack = {
       workTimeHours: 2,
     },
   ],
+  education: {
+    ...defaultPack.education,
+    locationId: 'school',
+    courses: [
+      {
+        id: 'lore-course',
+        name: 'Lore',
+        path: 'college',
+        level: 1,
+        classesRequired: 1,
+        classTimeHours: 1,
+        dataBasis: 'approved-default',
+      },
+    ],
+  },
   layout: {
     size: 3,
     cells: [
       { row: 0, col: 0, content: { kind: 'location', locationId: 'cabin' } },
       { row: 0, col: 1, content: { kind: 'location', locationId: 'mine' } },
       { row: 0, col: 2, content: { kind: 'location', locationId: 'shop' } },
-      { row: 1, col: 2, content: { kind: 'blank' } },
+      { row: 1, col: 2, content: { kind: 'location', locationId: 'school' } },
       { row: 2, col: 2, content: { kind: 'clock' } },
       { row: 2, col: 1, content: { kind: 'location', locationId: 'vault' } },
       { row: 2, col: 0, content: { kind: 'location', locationId: 'hall' } },
@@ -783,31 +807,121 @@ describe('the Week ends (AC-004)', () => {
   });
 });
 
-describe('attendClass', () => {
+describe('education courses', () => {
   beforeEach(() => setPlayer({ locationId: UNI }));
 
-  it('raises education for tuition and class hours', () => {
-    setPlayer({ money: TUITION_COST });
-    store().attendClass();
+  it('enrolls with the scaled fee, then spends class Time without another fee', () => {
+    const fee = scalePrice(defaultPack.education.enrollmentFee, 1);
+    setPlayer({ money: fee + 100 });
+    store().enrollCourse(TRADE_SCHOOL.id);
     expect(player()).toMatchObject({
-      money: 0,
-      timeRemaining: MAX_TIME - CLASS_HOURS,
+      money: 100,
+      timeRemaining: MAX_TIME - defaultPack.education.enrollmentTimeHours,
+      enrolledCourseId: TRADE_SCHOOL.id,
+      courseClassesCompleted: 0,
+    });
+
+    store().attendClass();
+    expect(player().money).toBe(100);
+    expect(player().timeRemaining).toBeCloseTo(
+      MAX_TIME -
+        defaultPack.education.enrollmentTimeHours -
+        TRADE_SCHOOL.classTimeHours,
+      5,
+    );
+    expect(player().courseClassesCompleted).toBe(1);
+    expect(player().educationLevel).toBe(0);
+  });
+
+  it('refuses enrollment without enough money or Time', () => {
+    const fee = scalePrice(defaultPack.education.enrollmentFee, 1);
+    setPlayer({ money: fee - 1 });
+    store().enrollCourse(TRADE_SCHOOL.id);
+    expect(player().money).toBe(fee - 1);
+    expect(player().enrolledCourseId).toBeNull();
+    expect(store().lastEvent).toMatch(/need \$50 and 1 hours to enroll/i);
+
+    setPlayer({ money: fee, timeRemaining: 0.5 });
+    store().enrollCourse(TRADE_SCHOOL.id);
+    expect(player().money).toBe(fee);
+    expect(player().timeRemaining).toBe(0.5);
+    expect(player().enrolledCourseId).toBeNull();
+  });
+
+  it('refuses enrollment and class attendance away from the university', () => {
+    setPlayer({ money: 100, locationId: HOME });
+    store().enrollCourse(TRADE_SCHOOL.id);
+    store().attendClass();
+    expect(player().educationLevel).toBe(0);
+    expect(player().money).toBe(100);
+    expect(player().enrolledCourseId).toBeNull();
+  });
+
+  it('preserves course progress when Time runs short and completes the selected path', () => {
+    setPlayer({ money: 1000 });
+    store().enrollCourse(TRADE_SCHOOL.id);
+    for (
+      let classIndex = 0;
+      classIndex < TRADE_SCHOOL.classesRequired;
+      classIndex++
+    ) {
+      if (player().timeRemaining < TRADE_SCHOOL.classTimeHours) {
+        setPlayer({ timeRemaining: MAX_TIME });
+      }
+      store().attendClass();
+    }
+
+    expect(player()).toMatchObject({
       educationLevel: 1,
+      educationPath: 'technical',
+      enrolledCourseId: null,
+      courseClassesCompleted: 0,
+      completedCourseIds: [TRADE_SCHOOL.id],
+    });
+    expect(store().lastEvent).toMatch(/completed Trade School/i);
+
+    store().enrollCourse('electronics');
+    expect(player().enrolledCourseId).toBe('electronics');
+  });
+
+  it('sets a completed college course path recognized by job eligibility', () => {
+    const course = defaultPack.education.courses.find(
+      (item) => item.id === 'jr-college',
+    )!;
+    setPlayer({ money: 1000 });
+    store().enrollCourse(course.id);
+    for (
+      let classIndex = 0;
+      classIndex < course.classesRequired;
+      classIndex++
+    ) {
+      if (player().timeRemaining < course.classTimeHours) {
+        setPlayer({ timeRemaining: MAX_TIME });
+      }
+      store().attendClass();
+    }
+
+    setPlayer({ locationId: EMPLOYMENT });
+    store().hire('hi-tech-teacher');
+    expect(player()).toMatchObject({
+      educationLevel: 1,
+      educationPath: 'college',
+      jobId: 'hi-tech-teacher',
     });
   });
 
-  it('refuses without enough money', () => {
-    setPlayer({ money: TUITION_COST - 1 });
-    store().attendClass();
-    expect(player().educationLevel).toBe(0);
-    expect(store().lastEvent).toBe('Need $100 and 4 hours for school.');
-  });
-
-  it('refuses away from the university', () => {
-    setPlayer({ money: TUITION_COST, locationId: HOME });
-    store().attendClass();
-    expect(player().educationLevel).toBe(0);
-    expect(player().money).toBe(TUITION_COST);
+  it('refuses another starter course after a path has been selected', () => {
+    setPlayer({
+      educationLevel: 1,
+      educationPath: 'technical',
+      locationId: UNI,
+      money: 500,
+    });
+    store().enrollCourse('jr-college');
+    expect(player().enrolledCourseId).toBeNull();
+    expect(store().lastEvent).toMatch(
+      /not the next course on your education path/i,
+    );
   });
 });
 
@@ -1333,7 +1447,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(10);
+    expect(persisted().version).toBe(11);
   });
 
   it('migrates a version 9 job save to career experience and its previous held wage', async () => {
@@ -1350,6 +1464,24 @@ describe('persistence', () => {
       jobId: ENTRY_JOB.id,
       heldWage: ENTRY_JOB.wage,
       careerExperience: {},
+    });
+  });
+
+  it('migrates a version 10 save with no active education-course state', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const oldPlayer = { ...player() } as Partial<Player>;
+    delete oldPlayer.enrolledCourseId;
+    delete oldPlayer.courseClassesCompleted;
+    delete oldPlayer.completedCourseIds;
+    const migrated = (await migrate?.(
+      { players: [oldPlayer], turnIndex: 0 },
+      10,
+    )) as { players: Player[] };
+
+    expect(migrated.players[0]).toMatchObject({
+      enrolledCourseId: null,
+      courseClassesCompleted: 0,
+      completedCourseIds: [],
     });
   });
 
@@ -1542,15 +1674,17 @@ describe('inflation (AC-010)', () => {
     expect(line).toContain(after.toFixed(2));
   });
 
-  it('scales the price of food and tuition by the level, rounding half up to the dollar', () => {
+  it('scales food and course enrollment by the current price level', () => {
     setState({ priceLevel: 1.1 });
     setPlayer({ money: 500, locationId: FRIES.locationId });
     store().buyFood(FRIES.id);
     // 68 x 1.10 = 74.80, which rounds to 75.
     expect(player().money).toBe(500 - 75);
     setPlayer({ locationId: UNI, timeRemaining: 12 });
+    store().enrollCourse(TRADE_SCHOOL.id);
+    expect(player().money).toBe(500 - 75 - 55);
     store().attendClass();
-    expect(player().money).toBe(500 - 75 - 110);
+    expect(player().money).toBe(500 - 75 - 55);
   });
 
   it('rounds to the nearest dollar, halves up, and at level 1.00 changes nothing', () => {

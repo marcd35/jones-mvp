@@ -1,6 +1,6 @@
 # Education and jobs reference
 
-**Status: author-approved on 2026-11-02.** T-02 / issue #4. This reference uses V1 spec r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) may proceed.
+**Status: author-approved on 2026-11-02.** T-02 / issue #4. This reference uses V1 spec r5, which records Q11 below, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) may proceed.
 
 ## Author decisions and source priority
 
@@ -10,6 +10,7 @@
 - One career point satisfies a generic `Experience`, `Management experience`, or `Basic management skills` requirement as an author-approved, replaceable v1 assumption (Q9 and Q10). The design document provides qualitative requirement labels, not this numeric value; T-01 only confirmed that some experience was required for Factory Assembly Worker.
 - V1 has no automatic firing rule. A clothing refusal does not end the held job.
 - The original-game fieldwork confirms that worn/torn clothes refuse Work with no pay and no Time spent, and that replacing clothes restores Work. The author decided that v1 has no rung-specific minimum clothing tier. Worn/torn clothes still block Work at every job, and a refusal does not end employment.
+- T-01 observed Trade School at 10 classes and about 9.5% of a 12-hour Week per class, with no per-class charge. In Q11, the author approved using those same 10 classes and 9.5%-Week class Time as clearly labelled, replaceable defaults for Jr. College and deeper courses. Hi-Tech U charges the observed $50 Week-1 enrollment fee once per course, scaled with the current price level; there is no per-class fee. Course enrollment spends 1 hour as a replaceable design-document default. These defaults are not claims about unobserved original-game behavior.
 
 ## Education path
 
@@ -22,7 +23,16 @@ V1 has a starter level and one further level. Higher courses and job rungs are d
 | 2 — one deeper step | A technical or academic course after the starter | T-01 showed Electronics and Pre-Engineer after Trade School but did not take either. The design document suggests Electronics/Pre-Engineer on the technical path and Bus. Admin/Academic on the college path. These are replaceable defaults, not confirmed course rules. |
 | Above level 2 | Locked in v1 | The design document's Engineering, Grad School and later courses are outside the one-deeper-step scope. Show them as locked only if represented in the data. |
 
-T-01 observed that Trade School takes 10 classes, each costing about 9.5% of a Week and no additional money. The enrollment fee was $50 in Week 1 and $52 in Week 3 and followed the price level. Finishing Trade School added it to the Statistics education list. These are observations for Trade School only; they do not establish later courses' fees, class counts, Time costs or effects. T-11 must keep those values in data and label any defaults it supplies.
+T-01 observed that Trade School takes 10 classes, each costing about 9.5% of a Week and no additional money. The enrollment fee was $50 in Week 1 and $52 in Week 3 and followed the price level. Finishing Trade School added it to the Statistics education list. These are observations for Trade School only. Q11 approves the same class count and Time as replaceable defaults for Jr. College and deeper courses; the $50 Week-1 fee is used for each course, scaled by price level, with no per-class fee. Enrollment Time is a 1-hour replaceable default from the design document. All course fees, class counts and Time costs remain data so these assumptions can be revised.
+
+| Course | Path | Level | Classes | Time per class | Data basis |
+| --- | --- | ---: | ---: | ---: | --- |
+| Trade School | Technical | 1 | 10 | 9.5% of a 12-hour Week | Observed in T-01 |
+| Jr. College | College | 1 | 10 | 9.5% of a 12-hour Week | Q11 replaceable default |
+| Electronics | Technical | 2 | 10 | 9.5% of a 12-hour Week | Q11 replaceable default |
+| Pre-Engineer | Technical | 2 | 10 | 9.5% of a 12-hour Week | Q11 replaceable default |
+| Bus. Admin | College | 2 | 10 | 9.5% of a 12-hour Week | Q11 replaceable default |
+| Academic | College | 2 | 10 | 9.5% of a 12-hour Week | Q11 replaceable default |
 
 ## Wage ladders and requirements
 
@@ -77,7 +87,7 @@ To map the design document's broad labels to the three v1 levels, use these repl
 - `Technical education`, `Technical training`, `Basic technical skills`, and `Engineering degree`: level 2 on the technical path.
 - `Advanced education` and `Advanced degree`: level 2 on either path.
 
-The design document does not define exact course equivalencies or numeric cutoffs. T-10 and T-11 must represent the approved levels in data and keep the mapping replaceable.
+The design document does not define exact course equivalencies or numeric cutoffs. T-10 and T-11 represent the approved levels in data and keep the mapping replaceable.
 
 ## Experience and job retention
 
@@ -91,14 +101,14 @@ V1 does not fire a Player automatically. T-01's earlier “work habits” warnin
 
 T-10a (#28) extends `Job` with `careerId`, an optional `educationPathRequired`, a human-readable `educationLabel`, and an `experienceRequired` threshold alongside `id`, `title`, base hourly `wage`, employer `locationId`, numeric `educationRequired`, `shiftHours` and `workTimeHours`. V1 jobs omit `clothingRequired`; no rung has a clothing tier.
 
-The Player state retains experience in `careerExperience`, keyed by career ID, so switching careers does not discard points. `educationPath` records the technical or college path; T-11 (#31) sets it when a course is completed. The Employment Office scales the base wage with the current price level; hiring snapshots that offer as `heldWage` (DEC-029). Successful Work adds one career point under T-10b (#29). Keep worn/torn-clothing refusal as a global Work rule. T-11 should put course names, prerequisites, fees, class counts and Time costs in education data, not rules code. The rules should continue to consume the data pack rather than hard-code employers, courses, wages or requirements (DEC-007 / AC-014).
+The Player state retains experience in `careerExperience`, keyed by career ID, so switching careers does not discard points. `educationPath` records the technical or college path; T-11 (#31) sets it when a course is completed. Course progress uses `enrolledCourseId`, `courseClassesCompleted`, and `completedCourseIds` on Player state. `EducationRules` contains the education location, enrollment fee and its data basis, enrollment Time and its basis, and the course list. Each `EducationCourse` contains its ID, name, path, level, class count, Time per class and whether those values are observed or approved defaults. Enrollment charges the scaled fee once and the configured enrollment Time; attending classes spends configured Time but no money. Completion advances education level/path and makes matching education requirements available to job eligibility. The Employment Office scales the base wage with the current price level; hiring snapshots that offer as `heldWage` (DEC-029). Successful Work adds one career point under T-10b (#29). Keep worn/torn-clothing refusal as a global Work rule. Course names, paths, levels, fees, class counts and Time costs stay in data rather than rules code; rules consume the data pack rather than hard-code employers, courses, wages or requirements (DEC-007 / AC-014).
 
 ## Sources and confidence
 
-- `docs/specs/v1-spec.md` r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-029, AC-008, AC-011, AC-012, UNK-004 and UNK-010.
+- `docs/specs/v1-spec.md` r5, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-030, AC-008, AC-011, AC-012, UNK-004 and UNK-010.
 - `docs/research/economy-parameters.md` (T-01 / #3, round 3), sections 6, 8, 9 and 10. Wage values and observed Trade School/Cook/Factory requirements are high or medium confidence as noted there; the job-requirement designations not confirmed by fieldwork are assumptions.
 - `docs/design/game-design.md`, Career System and Education System. Use only for labelled, replaceable defaults where T-01 did not confirm a value.
 - T-03's current `Job` type in `src/types/index.ts`.
-- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10); no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers.
+- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10); no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers; Q11 authorizes the Trade School 10-class and 9.5%-Week class Time values as replaceable defaults for unobserved courses, with one enrollment fee per course and no per-class fee.
 
 **Author review gate:** passed; the author approved this reference on 2026-11-02.
