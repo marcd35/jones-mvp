@@ -1,6 +1,12 @@
 import { create, StateCreator } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { DataPack, GameState, Player } from '@/types';
+import {
+  DataPack,
+  GameState,
+  Player,
+  WeekEndReason,
+  WeekendEffectId,
+} from '@/types';
 import {
   CLASS_HOURS,
   FOOD_COST,
@@ -19,10 +25,13 @@ import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
 import { createRandom, Random } from '@/lib/random';
+import { WEEKEND_EFFECTS } from '@/lib/weekend';
 
 interface GameActions {
   walkTo: (locationId: string) => void;
-  work: (jobId: string, hours: number) => void;
+  hire: (jobId: string) => void;
+  work: () => void;
+  dismissWeekendReport: () => void;
   eat: () => void;
   attendClass: () => void;
   endTurn: () => void;
@@ -37,7 +46,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -58,6 +67,7 @@ const newPlayer = (pack: DataPack): Player => ({
   hasEaten: false,
   isStarving: false,
   locationId: pack.homeLocationId,
+  jobId: null,
 });
 
 const initialState = (pack: DataPack): GameState => ({
@@ -65,6 +75,7 @@ const initialState = (pack: DataPack): GameState => ({
   lastEvent: null,
   eventSeq: 0,
   currentWeek: 1,
+  weekendReport: null,
   players: [newPlayer(pack)],
   turnIndex: 0,
 });
@@ -85,30 +96,45 @@ const gameStoreCreator =
     const notify = (message: string) =>
       set((state) => withEvent(state, message));
 
-    // Ends the active Player's Week: hunger, rent, then a fresh Week of Time.
-    // `sendHome` is for a Week cut short on the road.
-    const rollWeek = (state: GameState, intro: string, sendHome: boolean) => {
+    // Ends the active Player's Week. The effects run in the fixed order of
+    // WEEKEND_EFFECTS; then the next Turn starts: home, with full Time less any
+    // hunger penalty. `intro` begins the event message.
+    const rollWeek = (
+      state: GameState,
+      intro: string,
+      reason: WeekEndReason,
+    ) => {
       const player = activePlayer(state);
       let currentMoney = player.money;
       let status = state.gameStatus;
       let eventLog = intro;
+      const said: Partial<Record<WeekendEffectId, string>> = {};
 
-      // 1. Hunger Logic
+      // 1. Food: hunger
       const isStarvingNow = !player.hasEaten;
-      if (isStarvingNow) eventLog += 'You are starving! Less time next week. ';
+      if (isStarvingNow) {
+        said.food = 'You are starving! Less time next week.';
+        eventLog += 'You are starving! Less time next week. ';
+      }
 
-      // 2. Rent Logic (Every 4th week: 4, 8, 12...)
+      // 2. Clothing wear: not built yet.
+
+      // 3. Rent due (every 4th week: 4, 8, 12...)
       if (state.currentWeek % RENT_INTERVAL === 0) {
         currentMoney -= RENT_COST;
+        said.rent = `Rent paid (-$${RENT_COST}).`;
         eventLog += `Rent Paid (-${RENT_COST}). `;
 
         if (currentMoney < 0) {
           status = 'lost';
+          said.rent += ' You could not afford it: evicted!';
           eventLog = 'Evicted! Game Over.';
         }
       }
 
-      // 3. Reset Time (Penalty if starving)
+      // 4. Inflation step and 5. newspaper: not built yet.
+
+      // Next Turn: full Time (less the hunger penalty), back at home.
       const nextMaxTime = isStarvingNow
         ? MAX_TIME - STARVATION_TIME_PENALTY
         : MAX_TIME;
@@ -120,11 +146,41 @@ const gameStoreCreator =
           money: currentMoney,
           hasEaten: false,
           isStarving: isStarvingNow,
-          ...(sendHome ? { locationId: pack.homeLocationId } : {}),
+          locationId: pack.homeLocationId,
         }),
         gameStatus: status,
+        weekendReport: {
+          week: state.currentWeek,
+          reason,
+          effects: WEEKEND_EFFECTS.map(({ id }) => ({
+            id,
+            text: said[id] ?? null,
+          })),
+          cash: currentMoney,
+        },
         ...withEvent(state, eventLog),
       };
+    };
+
+    // Applies what an action changed. If it used the last of the Player's
+    // Time, the Week ends at once. `message` is the action's own event text.
+    const settle = (
+      state: GameState,
+      next: Partial<GameState>,
+      message: string | null = null,
+    ) => {
+      const after = { ...state, ...next };
+      if (
+        after.gameStatus !== 'playing' ||
+        activePlayer(after).timeRemaining > 0
+      ) {
+        return { ...next, ...(message ? withEvent(state, message) : {}) };
+      }
+      return rollWeek(
+        after,
+        message ? `${message} Time is up. ` : 'Time is up. ',
+        'time',
+      );
     };
 
     return {
@@ -153,34 +209,61 @@ const gameStoreCreator =
           // The walk starts, time runs out on the road, and the Player wakes
           // up at home in the next Week.
           set((s) =>
-            rollWeek(s, 'You ran out of time on the way home. ', true),
+            rollWeek(s, 'You ran out of time on the way home. ', 'road'),
           );
           return;
         }
 
-        set((s) => ({
-          players: patchActive(s, {
-            locationId: targetLocationId,
-            timeRemaining: roundHours(activePlayer(s).timeRemaining - cost),
+        set((s) =>
+          settle(s, {
+            players: patchActive(s, {
+              locationId: targetLocationId,
+              timeRemaining: roundHours(activePlayer(s).timeRemaining - cost),
+            }),
+            lastEvent: null,
           }),
-          lastEvent: null,
-        }));
+        );
       },
 
-      work: (jobId, hours) => {
+      hire: (jobId) => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
-        const { timeRemaining, locationId, educationLevel } =
-          activePlayer(state);
+        const player = activePlayer(state);
 
         const job = pack.jobs.find((j) => j.id === jobId);
         if (!job) return;
-        if (!Number.isInteger(hours) || hours <= 0) return;
-
-        if (educationLevel < job.educationRequired) {
+        if (locationOf(player.locationId)?.type !== 'employment') {
+          notify('You can only get hired at an employment office.');
+          return;
+        }
+        if (player.educationLevel < job.educationRequired) {
           notify(
             `Requires education level ${job.educationRequired} to work as ${job.title}.`,
           );
+          return;
+        }
+        if (player.jobId === jobId) {
+          notify(`You already work as ${job.title}.`);
+          return;
+        }
+
+        set((s) => ({
+          players: patchActive(s, { jobId }),
+          ...withEvent(
+            s,
+            `Hired as ${job.title} at ${locationOf(job.locationId)?.name ?? 'work'}.`,
+          ),
+        }));
+      },
+
+      work: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const { timeRemaining, locationId, jobId } = activePlayer(state);
+
+        const job = pack.jobs.find((j) => j.id === jobId);
+        if (!job) {
+          notify('You have no job. Get hired at an employment office.');
           return;
         }
         if (locationId !== job.locationId) {
@@ -189,28 +272,30 @@ const gameStoreCreator =
           );
           return;
         }
-        if (timeRemaining < hours) {
+        if (timeRemaining < job.workTimeHours) {
           notify('Not enough time to work!');
           return;
         }
 
         set((s) => {
           const player = activePlayer(s);
-          const earned = job.wage * hours;
+          const earned = job.wage * job.shiftHours;
           const newMoney = player.money + earned;
-          const isWin = newMoney >= WIN_MONEY && jobId === WIN_JOB_ID;
+          const isWin = newMoney >= WIN_MONEY && job.id === WIN_JOB_ID;
 
-          return {
-            players: patchActive(s, {
-              money: newMoney,
-              timeRemaining: roundHours(player.timeRemaining - hours),
-            }),
-            gameStatus: isWin ? 'won' : 'playing',
-            ...withEvent(
-              s,
-              `Worked ${hours} hrs as ${job.title}. Earned ${earned}.`,
-            ),
-          };
+          return settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: newMoney,
+                timeRemaining: roundHours(
+                  player.timeRemaining - job.workTimeHours,
+                ),
+              }),
+              gameStatus: isWin ? 'won' : 'playing',
+            },
+            `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}.`,
+          );
         });
       },
 
@@ -231,15 +316,18 @@ const gameStoreCreator =
 
         set((s) => {
           const player = activePlayer(s);
-          return {
-            players: patchActive(s, {
-              money: player.money - FOOD_COST,
-              hasEaten: true,
-              isStarving: false,
-              timeRemaining: roundHours(player.timeRemaining - MEAL_HOURS),
-            }),
-            ...withEvent(s, 'You ate a meal. Hunger satisfied.'),
-          };
+          return settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: player.money - FOOD_COST,
+                hasEaten: true,
+                isStarving: false,
+                timeRemaining: roundHours(player.timeRemaining - MEAL_HOURS),
+              }),
+            },
+            'You ate a meal. Hunger satisfied.',
+          );
         });
       },
 
@@ -255,24 +343,26 @@ const gameStoreCreator =
 
         set((s) => {
           const player = activePlayer(s);
-          return {
-            players: patchActive(s, {
-              money: player.money - TUITION_COST,
-              timeRemaining: roundHours(player.timeRemaining - CLASS_HOURS),
-              educationLevel: player.educationLevel + 1,
-            }),
-            ...withEvent(
-              s,
-              'Education Level Increased! You can now apply for better jobs.',
-            ),
-          };
+          return settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: player.money - TUITION_COST,
+                timeRemaining: roundHours(player.timeRemaining - CLASS_HOURS),
+                educationLevel: player.educationLevel + 1,
+              }),
+            },
+            'Education Level Increased! You can now apply for better jobs.',
+          );
         });
       },
 
       endTurn: () => {
         if (get().gameStatus !== 'playing') return;
-        set((state) => rollWeek(state, 'Week Ended. ', false));
+        set((state) => rollWeek(state, 'Week Ended. ', 'ended'));
       },
+
+      dismissWeekendReport: () => set({ weekendReport: null }),
 
       // Keeps eventSeq so a toast from the previous game is never re-shown.
       resetGame: () =>
@@ -303,6 +393,7 @@ export const useGameStore = create<GameStore>()(
     skipHydration: true,
     partialize: (state) => ({
       currentWeek: state.currentWeek,
+      weekendReport: state.weekendReport,
       gameStatus: state.gameStatus,
       players: state.players,
       turnIndex: state.turnIndex,
@@ -340,6 +431,14 @@ export const useGameStore = create<GameStore>()(
         }
         state.players = [player];
         state.turnIndex = 0;
+      }
+      // v3 added the Player's job and the pending weekend report.
+      if (version < 3) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          jobId: p.jobId ?? null,
+        }));
+        state.weekendReport = null;
       }
       return state as never;
     },

@@ -4,6 +4,7 @@ import { HUD } from '@/components/game/HUD';
 import { StoreHydrator } from '@/components/game/StoreHydrator';
 import { Board } from '@/components/game/Board';
 import { GameOver } from '@/components/game/GameOver';
+import { WeekendReport } from '@/components/game/WeekendReport';
 import { Toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
@@ -41,6 +42,7 @@ export default function Home() {
       <Board />
 
       {/* Overlays */}
+      <WeekendReport />
       <GameOver />
       <Toast />
 

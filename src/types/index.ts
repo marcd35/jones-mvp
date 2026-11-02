@@ -1,4 +1,10 @@
-export type LocationType = 'work' | 'store' | 'education' | 'housing' | 'other';
+export type LocationType =
+  | 'work'
+  | 'employment' // Where the Player is hired (an employment office)
+  | 'store'
+  | 'education'
+  | 'housing'
+  | 'other';
 
 export interface Location {
   id: string;
@@ -16,6 +22,8 @@ export interface Job {
   wage: number; // Hourly wage
   locationId: string;
   educationRequired: number; // 0 = none
+  shiftHours: number; // Hours of pay one Work action earns (DEC-026)
+  workTimeHours: number; // Time one Work action costs (DEC-022, DEC-026)
 }
 
 // What sits in one cell of the Board's ring.
@@ -58,6 +66,24 @@ export interface Player {
   hasEaten: boolean; // Resets every turn
   isStarving: boolean; // Penalty state if they didn't eat
   locationId: string;
+  jobId: string | null; // Hired at an employment Location; null = no job
+}
+
+// The effects of a Week's end, in the fixed order they are applied and listed
+// (see WEEKEND_EFFECTS in lib/weekend.ts).
+export type WeekendEffectId =
+  'food' | 'clothing' | 'rent' | 'inflation' | 'newspaper';
+
+// Why a Week ended.
+export type WeekEndReason = 'ended' | 'time' | 'road';
+
+export interface WeekendReport {
+  week: number; // The Week that ended
+  reason: WeekEndReason;
+  // One entry per effect, in the fixed order; text is null when the effect
+  // has nothing to report (or is not built yet).
+  effects: { id: WeekendEffectId; text: string | null }[];
+  cash: number; // The Player's money once every effect has been applied
 }
 
 export interface GameState {
@@ -67,6 +93,7 @@ export interface GameState {
   eventSeq: number; // Bumps on every event so repeated messages still show
 
   currentWeek: number;
+  weekendReport: WeekendReport | null; // Set when a Week ends; cleared when read
 
   // v1 runs with one Player; every rule reads the active one.
   players: Player[];

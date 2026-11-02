@@ -60,7 +60,7 @@ export const LOCATIONS: Location[] = [
   {
     id: 'employment-office',
     name: 'Employment Office',
-    type: 'other',
+    type: 'employment',
     description: 'Find a better job.',
   },
   {
@@ -92,13 +92,17 @@ export const LEGACY_LOCATION_IDS: Record<string, string> = {
   uni: 'hi-tech-u',
 };
 
+// DEC-022, DEC-026: a Work action pays wage x shiftHours and costs
+// workTimeHours of Time (about 10% of a 12-hour Week).
 export const JOBS: Job[] = [
   {
-    id: 'fry-cook',
-    title: 'Fry Cook',
-    wage: 6,
+    id: 'cook',
+    title: 'Cook',
+    wage: 4,
     locationId: 'monolith-burger',
     educationRequired: 0,
+    shiftHours: 8,
+    workTimeHours: 1.2,
   },
   {
     id: 'shift-manager',
@@ -106,5 +110,7 @@ export const JOBS: Job[] = [
     wage: 15,
     locationId: 'monolith-burger',
     educationRequired: 1,
+    shiftHours: 8,
+    workTimeHours: 1.2,
   },
 ];

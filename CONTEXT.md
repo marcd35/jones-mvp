@@ -46,3 +46,7 @@ _Avoid_: Building, store, room
 **Step**:
 One unit of walking between places on the Board. Walking costs Time per Step.
 _Avoid_: Move, hop
+
+**Weekend report**:
+The summary shown when a Week ends. It has one line for each effect of the Week's end, always in the same order (food, clothing wear, rent due, inflation step, newspaper), and shows "No change" for an effect that does nothing yet or that week.
+_Avoid_: Summary, receipt

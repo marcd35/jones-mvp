@@ -75,8 +75,53 @@ describe('validatePack', () => {
       jobs: [{ ...defaultPack.jobs[0], locationId: 'moon' }],
     };
     expect(validatePack(pack)).toContain(
-      'Job "fry-cook" is at unknown Location "moon".',
+      'Job "cook" is at unknown Location "moon".',
     );
+  });
+
+  it('rejects a job at a closed Location', () => {
+    const pack = {
+      ...defaultPack,
+      jobs: [{ ...defaultPack.jobs[0], locationId: 'bank' }],
+    };
+    expect(validatePack(pack)).toContain(
+      'Job "cook" is at closed Location "bank".',
+    );
+  });
+
+  it('rejects two jobs with the same id', () => {
+    const pack = {
+      ...defaultPack,
+      jobs: [defaultPack.jobs[0], defaultPack.jobs[0]],
+    };
+    expect(validatePack(pack)).toContain('Job "cook" is defined twice.');
+  });
+
+  it.each([
+    ['wage', -1, 'Job "cook" needs a wage of at least 0.'],
+    ['wage', NaN, 'Job "cook" needs a wage of at least 0.'],
+    ['shiftHours', 0, 'Job "cook" needs a shift of more than 0 paid hours.'],
+    [
+      'workTimeHours',
+      0,
+      'Job "cook" needs a Work Time cost of more than 0 hours.',
+    ],
+    [
+      'workTimeHours',
+      13,
+      'Job "cook" has a Work Time cost of 13 hours, more than a Week of 12.',
+    ],
+    [
+      'educationRequired',
+      -1,
+      'Job "cook" needs an education requirement of at least 0.',
+    ],
+  ])('rejects a job with a bad %s (%s)', (field, value, message) => {
+    const pack = {
+      ...defaultPack,
+      jobs: [{ ...defaultPack.jobs[0], [field]: value }],
+    };
+    expect(validatePack(pack)).toContain(message);
   });
 
   it('rejects an unknown or closed home', () => {
