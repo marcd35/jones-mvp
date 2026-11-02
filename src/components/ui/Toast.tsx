@@ -6,22 +6,18 @@ import { Bell } from 'lucide-react';
 
 export function Toast() {
   const lastEvent = useGameStore((state) => state.lastEvent);
-  const [visible, setVisible] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
 
-  // When lastEvent changes in the store, show it
+  // Show lastEvent until the 3 second timer marks it dismissed
   useEffect(() => {
     if (lastEvent) {
-      setMessage(lastEvent);
-      setVisible(true);
-
-      // Auto-hide after 3 seconds
-      const timer = setTimeout(() => setVisible(false), 3000);
+      const timer = setTimeout(() => setDismissed(lastEvent), 3000);
       return () => clearTimeout(timer);
     }
   }, [lastEvent]);
 
-  if (!visible || !message) return null;
+  const message = lastEvent !== dismissed ? lastEvent : null;
+  if (!message) return null;
 
   return (
     <div className="animate-in slide-in-from-bottom-5 fade-in fixed bottom-8 left-1/2 z-50 -translate-x-1/2 duration-300">
