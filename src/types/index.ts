@@ -21,6 +21,7 @@ export interface GameState {
   // Status
   gameStatus: GameStatus;
   lastEvent: string | null; // To show "Rent Paid!" messages
+  eventSeq: number; // Bumps on every event so repeated messages still show
 
   // Player Stats
   money: number;
@@ -34,7 +35,4 @@ export interface GameState {
 
   // Position
   currentLocationId: string;
-
-  // Job
-  currentJobId: string | null;
 }
