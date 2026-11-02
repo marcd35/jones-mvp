@@ -804,11 +804,34 @@ describe('winning and losing (AC-006)', () => {
 
   it('needs every Goal met: a fortune does not win with points on the unbuilt Goals', () => {
     useGameStore.setState(useGameStore.getInitialState(), true);
-    store().startGame(); // the default points on all four Goals
+    // A spread of points on all four Goals (the default is all on wealth).
+    store().setGoalPoints('wealth', 50);
+    for (const id of ['happiness', 'education', 'career'] as const) {
+      store().setGoalPoints(id, 50);
+    }
+    store().startGame();
     atWork();
     setPlayer({ money: 1_000_000 });
     store().work();
     expect(store().gameStatus).toBe('playing');
+  });
+
+  it('wins a new game with the default Goal points by earning to the wealth target', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    store().startGame(); // untouched defaults from the real pack
+    const target = Math.ceil(player().goals.wealth * WEALTH.perPoint);
+    expect(target).toBe(2000);
+    expect(player().goals).toMatchObject({
+      wealth: 50,
+      happiness: 0,
+      education: 0,
+      career: 0,
+    });
+    atWork();
+    setPlayer({ money: target - shift });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+    expect(player().money).toBe(target);
   });
 
   it('allows no action after a win, and a new game is still available', () => {

@@ -168,8 +168,8 @@ describe('validatePack', () => {
     });
 
     it('rejects default points over the budget', () => {
-      expect(validatePack({ ...defaultPack, goalPointsBudget: 100 })).toContain(
-        'Default Goal points (200) are over the budget of 100.',
+      expect(validatePack({ ...defaultPack, goalPointsBudget: 40 })).toContain(
+        'Default Goal points (50) are over the budget of 40.',
       );
       expect(validatePack({ ...defaultPack, goalPointsBudget: 0 })).toContain(
         'Goal points budget must be above 0.',
