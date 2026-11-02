@@ -141,6 +141,51 @@ describe('validatePack', () => {
       'Walking cost for 1 Steps must be a number of at least 0.',
     );
   });
+
+  describe('Goals, starting cash and the rent limit', () => {
+    const goals = defaultPack.goals;
+
+    it('rejects a missing or repeated Goal', () => {
+      expect(validatePack({ ...defaultPack, goals: goals.slice(1) })).toContain(
+        'Goal "wealth" is missing.',
+      );
+      expect(
+        validatePack({ ...defaultPack, goals: [...goals, goals[0]] }),
+      ).toContain('Goal "wealth" is defined twice.');
+    });
+
+    it('rejects a Goal with no target per point or negative default points', () => {
+      const bad = goals.map((g, i) =>
+        i === 0 ? { ...g, perPoint: 0, defaultPoints: -1 } : g,
+      );
+      const problems = validatePack({ ...defaultPack, goals: bad });
+      expect(problems).toContain(
+        'Goal "wealth" needs a target per point above 0.',
+      );
+      expect(problems).toContain(
+        'Goal "wealth" needs default points of at least 0.',
+      );
+    });
+
+    it('rejects default points over the budget', () => {
+      expect(validatePack({ ...defaultPack, goalPointsBudget: 100 })).toContain(
+        'Default Goal points (200) are over the budget of 100.',
+      );
+      expect(validatePack({ ...defaultPack, goalPointsBudget: 0 })).toContain(
+        'Goal points budget must be above 0.',
+      );
+    });
+
+    it('rejects negative starting money and a rent limit of 0', () => {
+      const problems = validatePack({
+        ...defaultPack,
+        startingMoney: -1,
+        rentOwedLimit: 0,
+      });
+      expect(problems).toContain('Starting money must be at least 0.');
+      expect(problems).toContain('The owed rent limit must be above 0.');
+    });
+  });
 });
 
 describe('loadPack', () => {

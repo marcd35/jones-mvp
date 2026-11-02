@@ -21,10 +21,12 @@ export function Board({ pack = defaultPack }: { pack?: DataPack }) {
   const player = useGameStore((s) => s.players[s.turnIndex]);
   const walkTo = useGameStore((s) => s.walkTo);
   const reportPending = useGameStore((s) => s.weekendReport !== null);
+  const isPlaying = useGameStore((s) => s.gameStatus === 'playing');
   // The Location whose screen is open. It shuts by itself when the Player is
   // no longer there (the Week ended and sent them home).
   const [openAt, setOpenAt] = useState<string | null>(null);
-  const isModalOpen = openAt === player.locationId && !reportPending;
+  const isModalOpen =
+    openAt === player.locationId && !reportPending && isPlaying;
 
   const problems = validatePack(pack);
   const { layout, locations } = pack;

@@ -8,6 +8,7 @@ import type { DataPack } from '@/types';
 
 beforeEach(() => {
   useGameStore.setState(useGameStore.getInitialState(), true);
+  useGameStore.getState().startGame();
 });
 
 const cellFor = (name: string) =>

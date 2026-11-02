@@ -1,4 +1,5 @@
 import type { DataPack } from '@/types';
+import { GOALS, GOAL_POINTS_BUDGET } from './goals';
 import { LAYOUT } from './layout';
 import { JOBS, LOCATIONS } from './locations';
 import { WALKING_COSTS } from './walking';
@@ -9,4 +10,8 @@ export const defaultPack: DataPack = {
   layout: LAYOUT,
   walkingCosts: WALKING_COSTS,
   homeLocationId: 'low-cost-housing',
+  startingMoney: 200, // Observed in the original (AC-005)
+  goalPointsBudget: GOAL_POINTS_BUDGET,
+  goals: GOALS,
+  rentOwedLimit: 300, // DEC-023: 3 months of rent; T-09 may tune
 };
