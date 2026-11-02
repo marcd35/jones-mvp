@@ -33,6 +33,7 @@ import {
 import { createRandom, Random } from '@/lib/random';
 import { newspaperIssueSchedule } from '@/lib/newspaper';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
+import { householdStockForWeek } from '@/lib/household-goods';
 
 interface GameActions {
   setGoalPoints: (goalId: GoalId, points: number) => void;
@@ -42,6 +43,7 @@ interface GameActions {
   work: () => void;
   dismissWeekendReport: () => void;
   buyFood: (goodId: string) => void;
+  buyHouseholdGood: (goodId: string) => void;
   buyClothes: (tierId: string) => void;
   buyNewspaper: () => void;
   attendClass: () => void;
@@ -61,7 +63,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 8;
+const STORAGE_VERSION = 9;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -85,6 +87,7 @@ const newPlayer = (pack: DataPack): Player => ({
   timeRemaining: MAX_TIME,
   educationLevel: 0,
   foodWeeks: 0,
+  ownedGoods: [],
   isStarving: false,
   clothes: { tierId: pack.clothing.startTierId, weeksWorn: 0 },
   locationId: pack.homeLocationId,
@@ -487,6 +490,57 @@ const gameStoreCreator =
         });
       },
 
+      buyHouseholdGood: (goodId) => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        const good = pack.householdGoods.goods.find((g) => g.id === goodId);
+        if (!good) return;
+        if (good.locationId !== player.locationId) {
+          notify(`${good.name} is not sold here.`);
+          return;
+        }
+        if (
+          !householdStockForWeek(
+            pack,
+            state.currentWeek,
+            state.priceSeed,
+            player.locationId,
+          ).some((item) => item.id === goodId)
+        ) {
+          notify(`${good.name} is out of stock this Week.`);
+          return;
+        }
+        if (player.ownedGoods.includes(goodId)) {
+          notify(`You already own ${good.name}.`);
+          return;
+        }
+        const price = priceOf(good.basePrice);
+        if (player.money < price) {
+          notify(`You need $${price} for ${good.name}.`);
+          return;
+        }
+        if (player.timeRemaining < good.timeHours) {
+          notify('Not enough time to shop!');
+          return;
+        }
+        set((s) =>
+          settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: player.money - price,
+                ownedGoods: [...player.ownedGoods, goodId],
+                timeRemaining: roundHours(
+                  player.timeRemaining - good.timeHours,
+                ),
+              }),
+            },
+            `Bought ${good.name} for $${price}.`,
+          ),
+        );
+      },
+
       buyClothes: (tierId) => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
@@ -840,6 +894,12 @@ export const useGameStore = create<GameStore>()(
         state.players = (state.players as Player[]).map((p) => ({
           ...p,
           newspaperReadWeek: p.newspaperReadWeek ?? null,
+        }));
+      }
+      if (version < 9) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          ownedGoods: p.ownedGoods ?? [],
         }));
       }
       return state as never;

@@ -164,6 +164,7 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   validateFood(pack, problems);
+  validateHouseholdGoods(pack, problems);
   validateClothing(pack, problems);
   validateNewspaper(pack, problems);
 
@@ -178,6 +179,28 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   return problems;
+}
+
+function validateHouseholdGoods(pack: DataPack, problems: string[]) {
+  const ids = new Set<string>();
+  for (const good of pack.householdGoods.goods) {
+    const what = `Household good "${good.id}"`;
+    if (ids.has(good.id)) problems.push(`${what} is defined twice.`);
+    ids.add(good.id);
+    validateSeller(pack, problems, what, good.locationId);
+    if (!(good.basePrice >= 0))
+      problems.push(`${what} needs a price of at least 0.`);
+    if (!(good.happinessPoints >= 0))
+      problems.push(`${what} needs happiness points of at least 0.`);
+    if (!(good.stockChance >= 0 && good.stockChance <= 1)) {
+      problems.push(`${what} needs a stock chance between 0 and 1.`);
+    }
+    if (!(good.timeHours >= 0 && good.timeHours <= MAX_TIME)) {
+      problems.push(
+        `${what} needs a Time cost between 0 and ${MAX_TIME} hours.`,
+      );
+    }
+  }
 }
 
 function validateNewspaper(pack: DataPack, problems: string[]) {

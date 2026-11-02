@@ -5,6 +5,10 @@ import { createRandom } from '@/lib/random';
 import { scalePrice } from '@/lib/inflation';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
+import {
+  householdStockForWeek,
+  ownedGoodsHappiness,
+} from '@/lib/household-goods';
 import type { DataPack, GameState, Player } from '@/types';
 import { CLASS_HOURS, MAX_TIME, TUITION_COST } from '@/lib/constants';
 
@@ -264,6 +268,28 @@ const inventedPack: DataPack = {
       },
     ],
   },
+  householdGoods: {
+    goods: [
+      {
+        id: 'lamp',
+        name: 'Lamp',
+        locationId: 'shop',
+        basePrice: 10,
+        happinessPoints: 2,
+        stockChance: 0.5,
+        timeHours: 0.5,
+      },
+      {
+        id: 'radio',
+        name: 'Radio',
+        locationId: 'shop',
+        basePrice: 20,
+        happinessPoints: 3,
+        stockChance: 0.5,
+        timeHours: 0.5,
+      },
+    ],
+  },
   clothing: {
     locationId: 'hall',
     tiers: [
@@ -335,6 +361,87 @@ describe('data pack separation', () => {
     ).toThrow(
       /Invalid data pack:[\s\S]*Home Location "moon" is not a Location/,
     );
+  });
+});
+
+describe('household goods', () => {
+  it('adds only the happiness points for owned goods', () => {
+    const microwave = defaultPack.householdGoods.goods.find(
+      (good) => good.id === 'microwave',
+    )!;
+    expect(
+      ownedGoodsHappiness(defaultPack, ['microwave', 'microwave', 'fries']),
+    ).toBe(microwave.happinessPoints);
+  });
+
+  it('uses repeatable Week stock and rotates the assortment', () => {
+    const first = householdStockForWeek(inventedPack, 1, 123, 'shop').map(
+      (g) => g.id,
+    );
+    expect(
+      householdStockForWeek(inventedPack, 1, 123, 'shop').map((g) => g.id),
+    ).toEqual(first);
+    expect(
+      householdStockForWeek(inventedPack, 2, 123, 'shop').map((g) => g.id),
+    ).not.toEqual(first);
+  });
+
+  it('charges current scaled price, records ownership, and keeps it after leaving', () => {
+    const game = inventedStore();
+    game.setState((state) => ({
+      players: state.players.map((p) => ({
+        ...p,
+        locationId: 'shop',
+        money: 100,
+      })),
+    }));
+    const stock = householdStockForWeek(
+      inventedPack,
+      1,
+      game.getState().priceSeed,
+      'shop',
+    );
+    const good = stock[0];
+    game.getState().buyHouseholdGood(good.id);
+    expect(game.getState().players[0]).toMatchObject({
+      money: 100 - good.basePrice,
+      ownedGoods: [good.id],
+    });
+    game.setState((state) => ({
+      players: state.players.map((p) => ({ ...p, locationId: 'cabin' })),
+    }));
+    expect(game.getState().players[0].ownedGoods).toContain(good.id);
+  });
+
+  it('refuses unaffordable, unavailable, and duplicate purchases', () => {
+    const game = inventedStore();
+    const stock = householdStockForWeek(
+      inventedPack,
+      1,
+      game.getState().priceSeed,
+      'shop',
+    );
+    const good = stock[0];
+    game.setState((state) => ({
+      players: state.players.map((p) => ({
+        ...p,
+        locationId: 'shop',
+        money: 0,
+      })),
+    }));
+    game.getState().buyHouseholdGood(good.id);
+    expect(game.getState().players[0].ownedGoods).toEqual([]);
+    game.setState((state) => ({
+      players: state.players.map((p) => ({
+        ...p,
+        money: 100,
+        ownedGoods: [good.id],
+      })),
+    }));
+    game.getState().buyHouseholdGood(good.id);
+    expect(game.getState().players[0].ownedGoods).toEqual([good.id]);
+    game.getState().buyHouseholdGood('unknown');
+    expect(game.getState().players[0].ownedGoods).toEqual([good.id]);
   });
 });
 
@@ -1102,7 +1209,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(8);
+    expect(persisted().version).toBe(9);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {

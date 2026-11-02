@@ -31,7 +31,7 @@ export const LOCATIONS: Location[] = [
     id: 'z-mart',
     name: 'Z-Mart',
     type: 'store',
-    description: 'Household goods. Coming soon.',
+    description: 'Household goods and everyday essentials.',
   },
   {
     id: 'monolith-burger',
@@ -48,7 +48,7 @@ export const LOCATIONS: Location[] = [
   {
     id: 'socket-city',
     name: 'Socket City',
-    type: 'other',
+    type: 'store',
     description: 'Electronics and appliances.',
   },
   {
