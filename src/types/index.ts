@@ -132,6 +132,14 @@ export interface InflationRule {
   notableMoves: NotableMove[];
 }
 
+// Newspaper availability and reading costs (issue #20).
+export interface NewspaperRules {
+  locationId: string;
+  price: number; // Fixed price, independent of the hidden price level
+  timeHours: number; // Time spent reading one issue
+  issueEveryWeeks: number; // A new issue appears every N Weeks
+}
+
 // Everything the rules read as content (DEC-007).
 export interface DataPack {
   locations: Location[];
@@ -145,6 +153,7 @@ export interface DataPack {
   rentOwedLimit: number; // The owed rent balance that loses the game (DEC-023)
   rent: RentRules;
   inflation: InflationRule;
+  newspaper: NewspaperRules;
   food: FoodRules;
   clothing: ClothingRules;
 }
@@ -175,6 +184,7 @@ export interface Player {
   rentDueWeek: number; // The next rent due Week; extensions move it one Week
   rentExtensionAskedWeek: number | null; // Keeps the office open for the rest of an extension Week
   rentPaidWeek: number | null; // The Week rent was paid, for the weekend report
+  newspaperReadWeek: number | null; // Week of the most recent issue read
 }
 
 // The effects of a Week's end, in the fixed order they are applied and listed

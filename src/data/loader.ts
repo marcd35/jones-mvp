@@ -165,6 +165,7 @@ export function validatePack(pack: DataPack): string[] {
 
   validateFood(pack, problems);
   validateClothing(pack, problems);
+  validateNewspaper(pack, problems);
 
   const costs = Object.entries(pack.walkingCosts);
   if (costs.length === 0) problems.push('Walking-cost table is empty.');
@@ -177,6 +178,27 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   return problems;
+}
+
+function validateNewspaper(pack: DataPack, problems: string[]) {
+  const { newspaper } = pack;
+  validateSeller(pack, problems, 'The newspaper', newspaper.locationId);
+  if (!(newspaper.price >= 0)) {
+    problems.push('The newspaper price must be at least 0.');
+  }
+  if (!(newspaper.timeHours >= 0 && newspaper.timeHours <= MAX_TIME)) {
+    problems.push(
+      `The newspaper reading Time must be between 0 and ${MAX_TIME} hours.`,
+    );
+  }
+  if (
+    !Number.isInteger(newspaper.issueEveryWeeks) ||
+    newspaper.issueEveryWeeks < 1
+  ) {
+    problems.push(
+      'A new newspaper issue must appear at a whole Week interval of at least 1.',
+    );
+  }
 }
 
 // A Location that sells something must exist and be open.

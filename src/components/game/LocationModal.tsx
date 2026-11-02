@@ -30,6 +30,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   const work = useGameStore((s) => s.work);
   const buyFood = useGameStore((s) => s.buyFood);
   const buyClothes = useGameStore((s) => s.buyClothes);
+  const buyNewspaper = useGameStore((s) => s.buyNewspaper);
   const attendClass = useGameStore((s) => s.attendClass);
   const payRent = useGameStore((s) => s.payRent);
   const payRentBalance = useGameStore((s) => s.payRentBalance);
@@ -59,6 +60,11 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     (g) => g.locationId === currentLocationId,
   );
   const sellsClothes = currentLocationId === clothing.locationId;
+  const newspaperRules = defaultPack.newspaper;
+  const sellsNewspaper = currentLocationId === newspaperRules.locationId;
+  const newspaperIssueAvailable =
+    (currentWeek - 1) % newspaperRules.issueEveryWeeks === 0;
+  const hasReadNewspaper = player.newspaperReadWeek === currentWeek;
   const rentDue = currentWeek >= rentDueWeek;
   const extensionAskedThisWeek = rentExtensionAskedWeek === currentWeek;
   const rentAmount = defaultPack.rent.homeAmounts[defaultPack.homeLocationId];
@@ -215,6 +221,37 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
           </section>
         )}
 
+        {sellsNewspaper && (
+          <section aria-label="Newspaper" className="space-y-2">
+            <h3 className="text-sm font-bold text-white">Newspaper</h3>
+            {hasReadNewspaper ? (
+              <p className="rounded border border-slate-700 bg-slate-800 p-3 text-sm text-white">
+                {newspaper ?? 'Nothing notable in the news this Week.'}
+              </p>
+            ) : newspaperIssueAvailable ? (
+              <Button
+                onClick={() => buyNewspaper()}
+                disabled={
+                  money < newspaperRules.price ||
+                  timeRemaining < newspaperRules.timeHours
+                }
+                className="min-h-11 w-full"
+              >
+                Buy this Week&apos;s newspaper (${newspaperRules.price} /{' '}
+                {formatHours(newspaperRules.timeHours)} hrs)
+              </Button>
+            ) : (
+              <p className="text-sm text-slate-300">
+                The next issue arrives in Week{' '}
+                {currentWeek +
+                  (newspaperRules.issueEveryWeeks -
+                    ((currentWeek - 1) % newspaperRules.issueEveryWeeks))}
+                .
+              </p>
+            )}
+          </section>
+        )}
+
         {/* === CLOTHING (AC-008): the Location the data names === */}
         {sellsClothes && (
           <section aria-label="Clothing" className="space-y-2">
@@ -258,18 +295,6 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                 Safe and sound. Nothing to do here but rest.
               </p>
             </div>
-            {/* The newspaper: this Week's notable move of the price level. */}
-            <section
-              aria-label="Newspaper"
-              className="rounded border border-slate-700 bg-slate-800 p-3"
-            >
-              <h3 className="text-xs font-bold text-slate-400 uppercase">
-                Newspaper
-              </h3>
-              <p className="mt-1 text-sm text-white">
-                {newspaper ?? 'Nothing notable in the news this Week.'}
-              </p>
-            </section>
           </div>
         )}
 

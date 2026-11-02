@@ -405,7 +405,7 @@ describe('inflation on screen (AC-004, AC-010)', () => {
     expect(lineOf(report, 'Newspaper')).toHaveTextContent('No change');
   });
 
-  it('prints the headline in the Newspaper line of the report, and again at home', async () => {
+  it('keeps the report headline and sells this Week’s issue at Black’s Market', async () => {
     render(<Home />);
     const report = await endWeek(seedWhere(true));
     const headline = useGameStore.getState().newspaper!;
@@ -417,19 +417,45 @@ describe('inflation on screen (AC-004, AC-010)', () => {
     );
     await userEvent.click(tileButton('Low-cost housing')); // already home
     const home = screen.getByRole('dialog', { name: 'Low-cost housing' });
-    expect(
-      within(within(home).getByLabelText('Newspaper')).getByText(headline),
-    ).toBeInTheDocument();
+    expect(within(home).queryByLabelText('Newspaper')).toBeNull();
+    await userEvent.click(within(home).getByRole('button', { name: 'Leave' }));
+
+    await userEvent.click(tileButton("Black's Market"));
+    await userEvent.click(tileButton("Black's Market"));
+    const market = screen.getByRole('dialog', { name: "Black's Market" });
+    await userEvent.click(
+      within(market).getByRole('button', {
+        name: /Buy this Week's newspaper \(\$1 \/ 0\.3 hrs\)/,
+      }),
+    );
+    expect(within(market).getByLabelText('Newspaper')).toHaveTextContent(
+      headline,
+    );
   });
 
-  it('says nothing notable at home when the level moved little', async () => {
+  it('does not show a free home issue when the level moved little', async () => {
     render(<Home />);
     const report = await endWeek(seedWhere(false));
     await userEvent.click(
       within(report).getByRole('button', { name: 'Start Week 2' }),
     );
     await userEvent.click(tileButton('Low-cost housing')); // already home
-    expect(screen.getByLabelText('Newspaper')).toHaveTextContent(
+    expect(screen.queryByLabelText('Newspaper')).toBeNull();
+    await userEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Low-cost housing' }),
+      ).getByRole('button', { name: 'Leave' }),
+    );
+
+    await userEvent.click(tileButton("Black's Market"));
+    await userEvent.click(tileButton("Black's Market"));
+    const market = screen.getByRole('dialog', { name: "Black's Market" });
+    await userEvent.click(
+      within(market).getByRole('button', {
+        name: /Buy this Week's newspaper/,
+      }),
+    );
+    expect(within(market).getByLabelText('Newspaper')).toHaveTextContent(
       'Nothing notable in the news this Week.',
     );
   });

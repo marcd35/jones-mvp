@@ -257,6 +257,33 @@ describe('validatePack inflation rule', () => {
   });
 });
 
+describe('validatePack newspaper rules', () => {
+  it.each([
+    [{ locationId: 'moon' }, 'The newspaper is at unknown Location "moon".'],
+    [{ locationId: 'bank' }, 'The newspaper is at closed Location "bank".'],
+    [{ price: -1 }, 'The newspaper price must be at least 0.'],
+    [
+      { timeHours: 13 },
+      'The newspaper reading Time must be between 0 and 12 hours.',
+    ],
+    [
+      { issueEveryWeeks: 0 },
+      'A new newspaper issue must appear at a whole Week interval of at least 1.',
+    ],
+  ])('rejects invalid newspaper rules %j', (patch, message) => {
+    expect(
+      validatePack({
+        ...defaultPack,
+        newspaper: { ...defaultPack.newspaper, ...patch },
+      }),
+    ).toContain(message);
+  });
+
+  it('accepts the default newspaper rules', () => {
+    expect(validatePack(defaultPack)).toEqual([]);
+  });
+});
+
 describe('validatePack: food and clothing', () => {
   const { food, clothing } = defaultPack;
   const withFood = (patch: Partial<typeof food>) => ({
