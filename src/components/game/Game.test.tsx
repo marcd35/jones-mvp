@@ -638,6 +638,10 @@ describe('clothing on screen (AC-008)', () => {
     await userEvent.click(tileButton('Monolith Burger')); // already there
     const burger = screen.getByRole('dialog', { name: 'Monolith Burger' });
     expect(burger).toHaveTextContent('Your clothes are worn out.');
+    expect(burger).toHaveTextContent(
+      'Work is refused with no pay or Time spent, and your job remains held.',
+    );
+    expect(player().jobId).toBe('cook');
     expect(within(burger).queryByRole('button', { name: /^Work/ })).toBeNull();
     await userEvent.click(
       within(burger).getByRole('button', { name: 'Leave' }),

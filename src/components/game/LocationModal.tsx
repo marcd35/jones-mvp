@@ -123,9 +123,10 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                     !meetsClothing(clothing, clothes, job.clothingRequired)) ? (
                     <p className="text-xs text-red-400">
                       {wornState === 'worn'
-                        ? 'Your clothes are worn out. '
+                        ? 'Your clothes are worn out. Work is refused with no pay or Time spent, and your job remains held. '
                         : `Needs ${tierName(job.clothingRequired ?? '')}. `}
-                      Buy clothes at {locationName(clothing.locationId)}.
+                      Buy clothes at {locationName(clothing.locationId)} to work
+                      again.
                     </p>
                   ) : jobId === job.id ? (
                     <Button

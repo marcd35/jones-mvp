@@ -1995,6 +1995,8 @@ describe('clothing (AC-008)', () => {
     expect(player()).toMatchObject({
       money: STARTING_MONEY,
       timeRemaining: MAX_TIME,
+      jobId: ENTRY_JOB.id,
+      careerExperience: {},
     });
     expect(store().lastEvent).toMatch(/worn out/i);
   });
