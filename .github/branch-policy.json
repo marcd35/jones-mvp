@@ -1,0 +1,5 @@
+{
+  "branchPattern": "^(feat|fix|docs|chore|refactor|test)/([0-9]+)-[a-z0-9]+(-[a-z0-9]+)*$",
+  "issueGroup": 2,
+  "example": "feat/5-walk-the-board"
+}
