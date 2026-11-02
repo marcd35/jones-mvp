@@ -293,3 +293,7 @@ No newspaper appeared at any weekend or elsewhere in Weeks 2 to 7, so no headlin
 - I fell into a poverty trap: $0 cash, worn-out clothes (so no work), loan refused, rent unpaid and garnished. A real player avoids it by buying food and clothes with the starting $200. The balance pass should note that the game is hard to recover from after about 5 weeks of hunger; the weekend takes up to all of your cash ("You spent $X" is capped at what you hold).
 - Win condition and Jones's goal progress: not reached.
 - Not reached: paying rent (and the effect of paying or not paying), deposit and moving cost, newspaper headlines, course details and what enrolling changes, the Pawn PAWN list, whether eating clears hunger, and the 4-week and 2-week Black's Market food effects.
+
+## Round 3 pointer
+
+A fresh game with the starting $200, played to Week 9, is written up in `docs/research/economy-parameters.md`. It resolves most of the open items above (the newspaper, food, rent and garnishment, education, Work, Relax, the Statistics screen) and corrects two things in these rounds: listed wages do follow the price level (a held job's pay does not), and round 2's walking costs were measured in hungry Weeks, which look about 1.45 times dearer.
