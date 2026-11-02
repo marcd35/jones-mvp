@@ -225,11 +225,27 @@ describe('Goals setup screen (AC-005)', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(4);
     expect(pointsLeft()).toHaveTextContent('0 left of 200');
     expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
-      'Target: $2,000',
+      'Target: $8,000',
     );
-    for (const label of ['Wealth', 'Happiness', 'Education', 'Career']) {
-      expect(slider(label).value).toBe('50');
+  });
+
+  // Until T-10 to T-12 measure the other Goals, the whole budget starts on
+  // wealth so the default setup can be won.
+  it('starts with every point on Wealth and none on the unmeasured Goals', () => {
+    render(<Home />);
+    expect(slider('Wealth').value).toBe('200');
+    expect(screen.getByTestId('goal-wealth-points')).toHaveTextContent(
+      '200 points',
+    );
+    for (const label of ['Happiness', 'Education', 'Career']) {
+      expect(slider(label).value).toBe('0');
     }
+    for (const goal of ['happiness', 'education', 'career']) {
+      expect(screen.getByTestId(`goal-${goal}-target`)).toHaveTextContent(
+        'No target',
+      );
+    }
+    expect(screen.getByRole('button', { name: 'Start game' })).toBeEnabled();
   });
 
   it('moves the target with the points, from the data table', () => {
@@ -247,27 +263,30 @@ describe('Goals setup screen (AC-005)', () => {
 
   it('never lets the sliders add up to more than the budget', () => {
     render(<Home />);
-    set('Wealth', 200);
-    // The others already hold 150 points, so wealth stays at 50.
-    expect(slider('Wealth').value).toBe('50');
-    set('Happiness', 0);
-    set('Education', 0);
-    set('Career', 0);
-    set('Wealth', 200);
-    expect(slider('Wealth').value).toBe('200');
+    // Wealth holds all 200 points, so Career has no room to rise.
     set('Career', 100);
     expect(slider('Career').value).toBe('0');
+    set('Wealth', 50);
+    set('Happiness', 100);
+    // Happiness holds 100 and Wealth 50, so Career gets the remaining 50.
+    set('Career', 100);
+    expect(slider('Career').value).toBe('50');
     expect(pointsLeft()).toHaveTextContent('0 left of 200');
   });
 
   it('warns about a Goal that nothing measures yet', () => {
     render(<Home />);
+    // The default puts no points on the unmeasured Goals, so no warning.
+    expect(screen.queryByText(/Nothing measures this Goal yet/)).toBeNull();
+    set('Wealth', 100);
+    set('Happiness', 50);
+    set('Career', 50);
     expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
-      3,
+      2,
     );
     set('Happiness', 0);
     expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
-      2,
+      1,
     );
   });
 
