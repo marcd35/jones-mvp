@@ -25,16 +25,16 @@ export const LAYOUT: BoardLayout = {
     loc(1, 4, 'monolith-burger'),
     loc(2, 4, 'qt-clothing'),
     blank(3, 4),
-    // Bottom row
-    loc(4, 0, 'socket-city'),
-    loc(4, 1, 'hi-tech-u'),
+    // Bottom row, left to right
+    loc(4, 0, 'factory'),
+    loc(4, 1, 'employment-office'),
     { row: 4, col: 2, content: { kind: 'clock' } },
-    loc(4, 3, 'employment-office'),
-    loc(4, 4, 'factory'),
-    // Left column
-    loc(1, 0, 'bank'),
+    loc(4, 3, 'hi-tech-u'),
+    loc(4, 4, 'socket-city'),
+    // Left column, top to bottom
+    blank(1, 0),
     loc(2, 0, 'blacks-market'),
-    blank(3, 0),
+    loc(3, 0, 'bank'),
   ],
   centre: { row: 1, col: 1, rowSpan: 3, colSpan: 3 },
 };

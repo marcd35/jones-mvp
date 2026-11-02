@@ -21,14 +21,14 @@ describe('ringCells', () => {
       'monolith-burger',
       'qt-clothing',
       'blank',
-      'factory',
-      'employment-office',
-      'clock',
-      'hi-tech-u',
       'socket-city',
-      'blank',
-      'blacks-market',
+      'hi-tech-u',
+      'clock',
+      'employment-office',
+      'factory',
       'bank',
+      'blacks-market',
+      'blank',
     ]);
   });
 });
@@ -37,19 +37,19 @@ describe('walkingSteps', () => {
   it('counts one Step between neighbours, also across the corners', () => {
     expect(walkingSteps(layout, 'le-security', 'rent-office')).toBe(1);
     expect(walkingSteps(layout, 'z-mart', 'monolith-burger')).toBe(1);
-    expect(walkingSteps(layout, 'le-security', 'bank')).toBe(1);
+    expect(walkingSteps(layout, 'bank', 'factory')).toBe(1);
   });
 
   it('counts a Step per cell, including the Clock and blank cells', () => {
     // Hi-Tech U and Employment Office are separated by the Clock cell.
     expect(walkingSteps(layout, 'hi-tech-u', 'employment-office')).toBe(2);
-    // Black's Market to Socket City passes the blank cell.
-    expect(walkingSteps(layout, 'blacks-market', 'socket-city')).toBe(2);
+    // QT Clothing to Socket City passes the blank cell.
+    expect(walkingSteps(layout, 'qt-clothing', 'socket-city')).toBe(2);
   });
 
   it('takes the shorter direction around the ring', () => {
     // Index 0 to index 12 is 12 clockwise but 4 the other way.
-    expect(walkingSteps(layout, 'le-security', 'socket-city')).toBe(4);
+    expect(walkingSteps(layout, 'le-security', 'factory')).toBe(4);
     expect(walkingSteps(layout, 'le-security', 'z-mart')).toBe(4);
   });
 

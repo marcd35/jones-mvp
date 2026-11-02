@@ -34,10 +34,14 @@ describe('Board layout', () => {
     });
     expect(cellFor('Factory')).toHaveStyle({
       gridRow: '5 / span 1',
+      gridColumn: '1 / span 1',
+    });
+    expect(cellFor('Socket City')).toHaveStyle({
+      gridRow: '5 / span 1',
       gridColumn: '5 / span 1',
     });
     expect(cellFor('Bank')).toHaveStyle({
-      gridRow: '2 / span 1',
+      gridRow: '4 / span 1',
       gridColumn: '1 / span 1',
     });
     expect(screen.getByRole('region', { name: 'Centre' })).toHaveStyle({
