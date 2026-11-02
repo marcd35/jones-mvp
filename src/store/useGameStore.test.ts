@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createGameStore, useGameStore } from './useGameStore';
 import { defaultPack } from '@/data';
 import { createRandom } from '@/lib/random';
+import { scalePrice } from '@/lib/inflation';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
 import type { DataPack, GameState, Player } from '@/types';
@@ -237,6 +238,12 @@ const inventedPack: DataPack = {
     },
   ],
   rentOwedLimit: 40,
+  // An invented rule: the level rises a quarter each Week.
+  inflation: {
+    startLevel: 1,
+    nextLevel: ({ week }) => 1 + (week - 1) * 0.25,
+    notableMoves: [{ minMove: 0.2, up: 'Gold rush!', down: 'Gold slump!' }],
+  },
 };
 const inventedStore = () => {
   const game = createGameStore({
@@ -424,8 +431,6 @@ describe('the Week ends (AC-004)', () => {
     expect(text('food')).toMatch(/starving/i);
     expect(text('rent')).toBeNull();
     expect(text('clothing')).toBeNull();
-    expect(text('inflation')).toBeNull();
-    expect(text('newspaper')).toBeNull();
   });
 
   it('puts rent in its own slot in a rent Week', () => {
@@ -978,7 +983,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(4);
+    expect(persisted().version).toBe(5);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -1052,5 +1057,241 @@ describe('persistence', () => {
 
   it('does not touch localStorage until rehydrated', () => {
     expect(useGameStore.persist.getOptions().skipHydration).toBe(true);
+  });
+});
+
+describe('inflation (AC-010)', () => {
+  // A game over a pack, played from the first Turn with a seeded source.
+  const gameOf = (pack: DataPack, seed = 1) => {
+    const game = createGameStore({ pack, random: createRandom(seed) });
+    game.getState().startGame();
+    return game;
+  };
+  // The level of each Week from Week 1 to `weeks`, ending a Week at a time.
+  const levels = (pack: DataPack, seed: number, weeks: number) => {
+    const game = gameOf(pack, seed);
+    const seen = [game.getState().priceLevel];
+    for (let w = 1; w < weeks; w++) {
+      game.getState().endTurn();
+      seen.push(game.getState().priceLevel);
+    }
+    return seen;
+  };
+  const { min, max } = { min: 0.83, max: 1.22 };
+  const report = () => store().weekendReport!;
+  const slot = (game: ReturnType<typeof gameOf>, id: string) =>
+    game.getState().weekendReport!.effects.find((e) => e.id === id)!.text;
+
+  it('starts Week 1 at the data start level, 1.00', () => {
+    expect(store().priceLevel).toBe(1);
+    expect(store().newspaper).toBeNull();
+    expect(gameOf(inventedPack).getState().priceLevel).toBe(1);
+  });
+
+  it('keeps the level in the data range over many Weeks and many seeds', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const level of levels(defaultPack, seed, 40).slice(1)) {
+        expect(level).toBeGreaterThanOrEqual(min);
+        expect(level).toBeLessThanOrEqual(max);
+      }
+    }
+  });
+
+  it('holds levels to two decimals', () => {
+    for (const level of levels(defaultPack, 3, 30)) {
+      expect(Math.round(level * 100) / 100).toBe(level);
+    }
+  });
+
+  it('moves the level each Week: the sequence is not constant', () => {
+    expect(new Set(levels(defaultPack, 5, 30)).size).toBeGreaterThan(10);
+  });
+
+  it('gives the same sequence for the same seed, and another for another (TEST-006)', () => {
+    expect(levels(defaultPack, 42, 20)).toEqual(levels(defaultPack, 42, 20));
+    expect(levels(defaultPack, 42, 20)).not.toEqual(
+      levels(defaultPack, 43, 20),
+    );
+  });
+
+  it('draws a new game its own seed from the random source, repeatably', () => {
+    const seedOf = (seed: number) =>
+      createGameStore({
+        pack: defaultPack,
+        random: createRandom(seed),
+      }).getState().priceSeed;
+    expect(seedOf(9)).toBe(seedOf(9));
+    expect(seedOf(9)).not.toBe(seedOf(10));
+    const game = gameOf(defaultPack, 9);
+    const first = game.getState().priceSeed;
+    game.getState().resetGame();
+    expect(game.getState().priceSeed).not.toBe(first);
+  });
+
+  it('applies the new level to the coming Week and reports the step', () => {
+    const game = gameOf(defaultPack, 8);
+    const before = game.getState().priceLevel;
+    game.getState().endTurn();
+    const after = game.getState().priceLevel;
+    const line = slot(game, 'inflation');
+    expect(line).toContain(before.toFixed(2));
+    expect(line).toContain(after.toFixed(2));
+  });
+
+  it('scales the price of food and tuition by the level, rounding half up to the dollar', () => {
+    setState({ priceLevel: 1.1 });
+    setPlayer({ money: 500, locationId: STORE });
+    store().eat();
+    // 15 x 1.10 = 16.50, which rounds up to 17.
+    expect(player().money).toBe(500 - 17);
+    setPlayer({ locationId: UNI, timeRemaining: 12 });
+    store().attendClass();
+    expect(player().money).toBe(500 - 17 - 110);
+  });
+
+  it('rounds to the nearest dollar, halves up, and at level 1.00 changes nothing', () => {
+    expect(scalePrice(15, 1.07)).toBe(16); // 16.05
+    expect(scalePrice(15, 1.03)).toBe(15); // 15.45
+    expect(scalePrice(15, 1.1)).toBe(17); // 16.50
+    expect(scalePrice(15, 0.83)).toBe(12); // 12.45
+    expect(scalePrice(15, 1)).toBe(15);
+    expect(scalePrice(100, 1.22)).toBe(122);
+  });
+
+  it('refuses a meal the scaled price puts out of reach', () => {
+    setState({ priceLevel: 1.22 });
+    setPlayer({ money: 16, locationId: STORE }); // $15 at 1.00, $18 at 1.22
+    store().eat();
+    expect(player().hasEaten).toBe(false);
+    expect(player().money).toBe(16);
+  });
+
+  it('does not scale wages', () => {
+    setState({ priceLevel: 1.22 });
+    employ(ENTRY_JOB.id);
+    setPlayer({ locationId: WORK });
+    store().work();
+    expect(player().money).toBe(
+      STARTING_MONEY + ENTRY_JOB.wage * ENTRY_JOB.shiftHours,
+    );
+  });
+
+  it('does not scale rent here: rent belongs to T-09', () => {
+    setState({ currentWeek: RENT_INTERVAL, priceLevel: 1.22 });
+    setPlayer({ money: 300, hasEaten: true });
+    store().endTurn();
+    expect(report().cash).toBe(300 - RENT_COST);
+  });
+
+  it('works with a replacement rule in an invented pack, with no rules change', () => {
+    const game = gameOf(inventedPack);
+    game.getState().endTurn();
+    expect(game.getState().priceLevel).toBe(1.25);
+    game.getState().endTurn();
+    expect(game.getState().priceLevel).toBe(1.5);
+    game.getState().walkTo('shop');
+    game.setState((s) => ({ players: [{ ...s.players[0], money: 100 }] }));
+    game.getState().eat();
+    expect(game.getState().players[0].money).toBe(
+      100 - scalePrice(FOOD_COST, 1.5),
+    );
+  });
+
+  it('announces a notable move in the newspaper slot and keeps the headline for the Week', () => {
+    const game = gameOf(inventedPack);
+    game.getState().endTurn(); // 1.00 to 1.25: a rise of 0.25
+    expect(slot(game, 'newspaper')).toBe('Gold rush!');
+    expect(game.getState().newspaper).toBe('Gold rush!');
+  });
+
+  it('says nothing when the move is below every threshold', () => {
+    const quiet: DataPack = {
+      ...inventedPack,
+      inflation: { ...inventedPack.inflation, nextLevel: () => 1.05 },
+    };
+    const game = gameOf(quiet);
+    game.getState().endTurn();
+    expect(game.getState().priceLevel).toBe(1.05);
+    expect(slot(game, 'newspaper')).toBeNull();
+    expect(game.getState().newspaper).toBeNull();
+  });
+
+  it('announces a fall and names the largest threshold met', () => {
+    const rule: DataPack['inflation'] = {
+      startLevel: 1,
+      nextLevel: ({ week }) => (week === 2 ? 0.7 : 0.85),
+      notableMoves: [
+        { minMove: 0.1, up: 'up', down: 'down' },
+        { minMove: 0.25, up: 'UP', down: 'DOWN' },
+      ],
+    };
+    const game = gameOf({ ...inventedPack, inflation: rule });
+    game.getState().endTurn(); // -0.30
+    expect(game.getState().newspaper).toBe('DOWN');
+    game.getState().endTurn(); // +0.15
+    expect(game.getState().newspaper).toBe('up');
+  });
+
+  it('ignores a rule that returns nothing usable and keeps the level', () => {
+    const broken: DataPack = {
+      ...inventedPack,
+      inflation: { ...inventedPack.inflation, nextLevel: () => NaN },
+    };
+    const game = gameOf(broken);
+    game.getState().endTurn();
+    expect(game.getState().priceLevel).toBe(1);
+  });
+
+  it('carries on the same sequence from a saved seed and level (AC-015)', () => {
+    const straight = levels(defaultPack, 77, 10);
+    const first = gameOf(defaultPack, 77);
+    for (let w = 1; w < 4; w++) first.getState().endTurn();
+    const { priceSeed, priceLevel, currentWeek } = first.getState();
+    // A refresh: a new store takes the saved fields and plays on.
+    const resumed = gameOf(defaultPack, 1);
+    resumed.setState({ priceSeed, priceLevel, currentWeek });
+    const rest: number[] = [];
+    for (let w = currentWeek; w < 10; w++) {
+      resumed.getState().endTurn();
+      rest.push(resumed.getState().priceLevel);
+    }
+    expect(rest).toEqual(straight.slice(currentWeek));
+  });
+
+  it('keeps the fixed order of the effects', () => {
+    store().endTurn();
+    expect(report().effects.map((e) => e.id)).toEqual([
+      'food',
+      'clothing',
+      'rent',
+      'inflation',
+      'newspaper',
+    ]);
+  });
+
+  it('saves the seed, the level and the headline', () => {
+    store().endTurn();
+    const { state } = JSON.parse(
+      localStorage.getItem('jones-mvp-storage') ?? '{}',
+    );
+    expect(state.priceSeed).toBe(store().priceSeed);
+    expect(state.priceLevel).toBe(store().priceLevel);
+    expect(state).toHaveProperty('newspaper');
+  });
+
+  it('migrates a version 4 save: the level starts at 1.00 with a seed and no headline', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const migrated = (await migrate?.(
+      {
+        currentWeek: 6,
+        gameStatus: 'playing',
+        players: [player()],
+        turnIndex: 0,
+      },
+      4,
+    )) as { priceLevel: number; priceSeed: number; newspaper: null };
+    expect(migrated.priceLevel).toBe(defaultPack.inflation.startLevel);
+    expect(Number.isInteger(migrated.priceSeed)).toBe(true);
+    expect(migrated.newspaper).toBeNull();
   });
 });

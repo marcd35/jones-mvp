@@ -25,6 +25,13 @@ import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
 import { allGoalsMet, clampGoalPoints, totalGoalPoints } from '@/lib/goals';
+import {
+  drawSeed,
+  inflationStepText,
+  newspaperHeadline,
+  nextPriceLevel,
+  scalePrice,
+} from '@/lib/inflation';
 import { createRandom, Random } from '@/lib/random';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 
@@ -45,11 +52,12 @@ type GameStore = GameState & GameActions;
 
 export interface GameDeps {
   pack: DataPack;
-  // Not used by any rule yet; every random choice must go through it.
+  // Every random choice goes through it. A new game draws its seed from it,
+  // and that seed fixes the game's price level sequence (AC-010).
   random?: Random;
 }
 
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -80,12 +88,15 @@ const newPlayer = (pack: DataPack): Player => ({
   owedRent: 0,
 });
 
-const initialState = (pack: DataPack): GameState => ({
+const initialState = (pack: DataPack, priceSeed: number): GameState => ({
   gameStatus: 'setup',
   lastEvent: null,
   eventSeq: 0,
   currentWeek: 1,
   weekendReport: null,
+  priceLevel: pack.inflation.startLevel,
+  priceSeed,
+  newspaper: null,
   players: [newPlayer(pack)],
   turnIndex: 0,
 });
@@ -98,9 +109,12 @@ const patchActive = (state: GameState, patch: Partial<Player>): Player[] =>
 
 // The rules, over an injected data pack. Persistence is added by the caller.
 const gameStoreCreator =
-  ({ pack }: GameDeps): StateCreator<GameStore> =>
+  ({ pack, random }: Required<GameDeps>): StateCreator<GameStore> =>
   (set, get) => {
     const locationOf = (id: string) => pack.locations.find((l) => l.id === id);
+
+    // A shop price at this Week's level (AC-010).
+    const priceOf = (base: number) => scalePrice(base, get().priceLevel);
 
     // Records an event without changing anything else.
     const notify = (message: string) =>
@@ -149,7 +163,23 @@ const gameStoreCreator =
         }
       }
 
-      // 4. Inflation step and 5. newspaper: not built yet.
+      // 4. Inflation step: the level for the coming Week.
+      const week = state.currentWeek + 1;
+      const level = nextPriceLevel(
+        pack.inflation,
+        state.priceSeed,
+        week,
+        state.priceLevel,
+      );
+      said.inflation = inflationStepText(state.priceLevel, level);
+
+      // 5. Newspaper: announces a notable move of the level.
+      const headline = newspaperHeadline(
+        pack.inflation,
+        state.priceLevel,
+        level,
+      );
+      if (headline) said.newspaper = headline;
 
       // Next Turn: full Time (less the hunger penalty), back at home.
       const nextMaxTime = isStarvingNow
@@ -171,6 +201,8 @@ const gameStoreCreator =
           status === 'playing' ? state.currentWeek + 1 : state.currentWeek,
         players,
         gameStatus: status,
+        priceLevel: level,
+        newspaper: headline,
         weekendReport: {
           week: state.currentWeek,
           reason,
@@ -208,7 +240,7 @@ const gameStoreCreator =
     };
 
     return {
-      ...initialState(pack),
+      ...initialState(pack, drawSeed(random)),
 
       setGoalPoints: (goalId, points) => {
         const state = get();
@@ -363,7 +395,8 @@ const gameStoreCreator =
           notify('You already ate this week.');
           return;
         }
-        if (money < FOOD_COST || timeRemaining < MEAL_HOURS) {
+        const foodCost = priceOf(FOOD_COST);
+        if (money < foodCost || timeRemaining < MEAL_HOURS) {
           notify("Can't afford food or no time!");
           return;
         }
@@ -374,7 +407,7 @@ const gameStoreCreator =
             s,
             {
               players: patchActive(s, {
-                money: player.money - FOOD_COST,
+                money: player.money - foodCost,
                 hasEaten: true,
                 isStarving: false,
                 timeRemaining: roundHours(player.timeRemaining - MEAL_HOURS),
@@ -390,8 +423,9 @@ const gameStoreCreator =
         if (state.gameStatus !== 'playing') return;
         const { money, timeRemaining, locationId } = activePlayer(state);
         if (locationOf(locationId)?.type !== 'education') return;
-        if (money < TUITION_COST || timeRemaining < CLASS_HOURS) {
-          notify(`Need $${TUITION_COST} and ${CLASS_HOURS} hours for school.`);
+        const tuition = priceOf(TUITION_COST);
+        if (money < tuition || timeRemaining < CLASS_HOURS) {
+          notify(`Need $${tuition} and ${CLASS_HOURS} hours for school.`);
           return;
         }
 
@@ -401,7 +435,7 @@ const gameStoreCreator =
             s,
             {
               players: patchActive(s, {
-                money: player.money - TUITION_COST,
+                money: player.money - tuition,
                 timeRemaining: roundHours(player.timeRemaining - CLASS_HOURS),
                 educationLevel: player.educationLevel + 1,
               }),
@@ -420,7 +454,10 @@ const gameStoreCreator =
 
       // Keeps eventSeq so a toast from the previous game is never re-shown.
       resetGame: () =>
-        set((state) => ({ ...initialState(pack), eventSeq: state.eventSeq })),
+        set((state) => ({
+          ...initialState(pack, drawSeed(random)),
+          eventSeq: state.eventSeq,
+        })),
     };
   };
 
@@ -436,9 +473,11 @@ export const createGameStore = (deps: GameDeps) => {
 };
 
 const gamePack = loadPack(defaultPack);
+// Real play: each new game gets its own seed. (Tests inject a fixed one.)
+const gameRandom = createRandom(Math.floor(Math.random() * 2 ** 32));
 
 export const useGameStore = create<GameStore>()(
-  persist(gameStoreCreator({ pack: gamePack }), {
+  persist(gameStoreCreator({ pack: gamePack, random: gameRandom }), {
     name: 'jones-mvp-storage',
     version: STORAGE_VERSION,
     storage: createJSONStorage(() => localStorage),
@@ -448,6 +487,9 @@ export const useGameStore = create<GameStore>()(
     partialize: (state) => ({
       currentWeek: state.currentWeek,
       weekendReport: state.weekendReport,
+      priceLevel: state.priceLevel,
+      priceSeed: state.priceSeed,
+      newspaper: state.newspaper,
       gameStatus: state.gameStatus,
       players: state.players,
       turnIndex: state.turnIndex,
@@ -503,6 +545,14 @@ export const useGameStore = create<GameStore>()(
           owedRent: p.owedRent ?? 0,
         }));
         if (state.gameStatus === 'playing') state.gameStatus = 'setup';
+      }
+      // v5 added the hidden price level, its seed and the newspaper. A saved
+      // game starts at the start level (its past levels were not kept) with a
+      // seed of its own.
+      if (version < 5) {
+        state.priceLevel = gamePack.inflation.startLevel;
+        state.priceSeed = drawSeed(gameRandom);
+        state.newspaper = null;
       }
       return state as never;
     },

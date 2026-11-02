@@ -1,3 +1,5 @@
+import type { Random } from '@/lib/random';
+
 export type LocationType =
   | 'work'
   | 'employment' // Where the Player is hired (an employment office)
@@ -66,6 +68,30 @@ export interface BoardLayout {
 // only; the lookup interpolates between them.
 export type WalkingCostTable = Record<number, number>;
 
+// What the rule that sets a Week's price level reads (DEC-024).
+export interface InflationContext {
+  week: number; // The Week the level is for
+  previous: number; // The level of the Week before
+  random: Random; // Seeded for this Week's step: the same seed, the same draw
+}
+
+// A move of the price level big enough for the newspaper to announce.
+export interface NotableMove {
+  minMove: number; // The smallest change in the level that counts
+  up: string; // Headline when the level rises by at least minMove
+  down: string; // Headline when it falls by at least minMove
+}
+
+// The price level rule and the newspaper's thresholds (DEC-024). The rule is
+// data: a pack changes how the level moves by replacing nextLevel.
+export interface InflationRule {
+  startLevel: number; // Week 1's level
+  nextLevel: (context: InflationContext) => number;
+  // Every move at or above a threshold is notable; the largest one met names
+  // the headline. Wages are not scaled by the level.
+  notableMoves: NotableMove[];
+}
+
 // Everything the rules read as content (DEC-007).
 export interface DataPack {
   locations: Location[];
@@ -77,6 +103,7 @@ export interface DataPack {
   goalPointsBudget: number; // Goal points a Player splits across the Goals
   goals: GoalDef[]; // One row for each GoalId
   rentOwedLimit: number; // The owed rent balance that loses the game (DEC-023)
+  inflation: InflationRule;
 }
 
 export interface Player {
@@ -118,6 +145,11 @@ export interface GameState {
 
   currentWeek: number;
   weekendReport: WeekendReport | null; // Set when a Week ends; cleared when read
+
+  // The hidden price level (AC-010): scales every shop price, never wages.
+  priceLevel: number; // This Week's level
+  priceSeed: number; // Seeds the level's steps, so a game's sequence repeats
+  newspaper: string | null; // This Week's headline, if the level moved notably
 
   // v1 runs with one Player; every rule reads the active one.
   players: Player[];

@@ -1,4 +1,5 @@
 import type { DataPack } from '@/types';
+import { INFLATION } from './inflation';
 import { GOALS, GOAL_POINTS_BUDGET } from './goals';
 import { LAYOUT } from './layout';
 import { JOBS, LOCATIONS } from './locations';
@@ -14,4 +15,5 @@ export const defaultPack: DataPack = {
   goalPointsBudget: GOAL_POINTS_BUDGET,
   goals: GOALS,
   rentOwedLimit: 300, // DEC-023: 3 months of rent; T-09 may tune
+  inflation: INFLATION,
 };

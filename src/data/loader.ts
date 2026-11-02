@@ -115,6 +115,17 @@ export function validatePack(pack: DataPack): string[] {
   if (!(pack.rentOwedLimit > 0))
     problems.push('The owed rent limit must be above 0.');
 
+  const { inflation } = pack;
+  if (!(inflation.startLevel > 0))
+    problems.push('The starting price level must be above 0.');
+  if (typeof inflation.nextLevel !== 'function')
+    problems.push('The price level needs a rule (nextLevel).');
+  for (const move of inflation.notableMoves) {
+    if (!(move.minMove > 0)) {
+      problems.push('A newspaper threshold needs a move of more than 0.');
+    }
+  }
+
   const costs = Object.entries(pack.walkingCosts);
   if (costs.length === 0) problems.push('Walking-cost table is empty.');
   for (const [steps, percent] of costs) {
