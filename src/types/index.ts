@@ -78,7 +78,6 @@ export interface HouseholdGood {
   basePrice: number;
   happinessPoints: number;
   stockChance: number;
-  timeHours: number;
 }
 
 export interface HouseholdGoodsRules {

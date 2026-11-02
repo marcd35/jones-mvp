@@ -11,7 +11,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 299,
       happinessPoints: 3,
       stockChance: 0.8,
-      timeHours: 0.5,
     },
     {
       id: 'refrigerator',
@@ -20,7 +19,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 499,
       happinessPoints: 5,
       stockChance: 0.75,
-      timeHours: 0.5,
     },
     {
       id: 'freezer',
@@ -29,7 +27,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 399,
       happinessPoints: 4,
       stockChance: 0.7,
-      timeHours: 0.5,
     },
     {
       id: 'stove',
@@ -38,7 +35,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 349,
       happinessPoints: 4,
       stockChance: 0.8,
-      timeHours: 0.5,
     },
     {
       id: 'atlas',
@@ -47,7 +43,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 49,
       happinessPoints: 1,
       stockChance: 0.75,
-      timeHours: 0.25,
     },
     {
       id: 'color-tv',
@@ -56,7 +51,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 599,
       happinessPoints: 6,
       stockChance: 0.75,
-      timeHours: 0.5,
     },
     {
       id: 'stereo',
@@ -65,7 +59,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 349,
       happinessPoints: 4,
       stockChance: 0.8,
-      timeHours: 0.5,
     },
     {
       id: 'computer',
@@ -74,7 +67,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 799,
       happinessPoints: 7,
       stockChance: 0.65,
-      timeHours: 0.5,
     },
     {
       id: 'hot-tub',
@@ -83,7 +75,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 1499,
       happinessPoints: 10,
       stockChance: 0.55,
-      timeHours: 0.5,
     },
     {
       id: 'black-white-tv',
@@ -92,7 +83,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 249,
       happinessPoints: 2,
       stockChance: 0.7,
-      timeHours: 0.5,
     },
     {
       id: 'vcr',
@@ -101,7 +91,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 299,
       happinessPoints: 3,
       stockChance: 0.7,
-      timeHours: 0.5,
     },
     {
       id: 'theatre-tickets',
@@ -110,7 +99,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 35,
       happinessPoints: 1,
       stockChance: 0.65,
-      timeHours: 0.25,
     },
     {
       id: '8-track-player',
@@ -119,7 +107,6 @@ export const HOUSEHOLD_GOODS: HouseholdGoodsRules = {
       basePrice: 199,
       happinessPoints: 2,
       stockChance: 0.6,
-      timeHours: 0.5,
     },
   ],
 };

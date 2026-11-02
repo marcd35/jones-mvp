@@ -247,11 +247,7 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                   key={good.id}
                   onClick={() => buyHouseholdGood(good.id)}
                   className="min-h-11 w-full bg-cyan-700 hover:bg-cyan-800"
-                  disabled={
-                    alreadyOwned ||
-                    money < price ||
-                    timeRemaining < good.timeHours
-                  }
+                  disabled={alreadyOwned || money < price}
                 >
                   {alreadyOwned ? 'Owned: ' : 'Buy '}
                   {good.name} (${price})

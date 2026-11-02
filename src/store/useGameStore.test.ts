@@ -277,7 +277,6 @@ const inventedPack: DataPack = {
         basePrice: 10,
         happinessPoints: 2,
         stockChance: 0.5,
-        timeHours: 0.5,
       },
       {
         id: 'radio',
@@ -286,7 +285,6 @@ const inventedPack: DataPack = {
         basePrice: 20,
         happinessPoints: 3,
         stockChance: 0.5,
-        timeHours: 0.5,
       },
     ],
   },
@@ -374,16 +372,51 @@ describe('household goods', () => {
     ).toBe(microwave.happinessPoints);
   });
 
-  it('uses repeatable Week stock and rotates the assortment', () => {
-    const first = householdStockForWeek(inventedPack, 1, 123, 'shop').map(
-      (g) => g.id,
-    );
+  it('samples each good by configured probability with repeatable weekly stock', () => {
+    const stockPack = {
+      ...defaultPack,
+      householdGoods: {
+        goods: [
+          {
+            id: 'never',
+            name: 'Never',
+            locationId: 'z-mart',
+            basePrice: 1,
+            happinessPoints: 0,
+            stockChance: 0,
+          },
+          {
+            id: 'always',
+            name: 'Always',
+            locationId: 'z-mart',
+            basePrice: 1,
+            happinessPoints: 0,
+            stockChance: 1,
+          },
+          {
+            id: 'sometimes',
+            name: 'Sometimes',
+            locationId: 'z-mart',
+            basePrice: 1,
+            happinessPoints: 0,
+            stockChance: 0.5,
+          },
+        ],
+      },
+    };
+    const stock = (week: number) =>
+      householdStockForWeek(stockPack, week, 123, 'z-mart').map((g) => g.id);
+
+    expect(stock(1)).toContain('always');
+    expect(stock(1)).not.toContain('never');
+    expect(stock(1)).toEqual(stock(1));
     expect(
-      householdStockForWeek(inventedPack, 1, 123, 'shop').map((g) => g.id),
-    ).toEqual(first);
-    expect(
-      householdStockForWeek(inventedPack, 2, 123, 'shop').map((g) => g.id),
-    ).not.toEqual(first);
+      new Set(
+        Array.from({ length: 64 }, (_, i) =>
+          stock(i + 1).includes('sometimes'),
+        ),
+      ),
+    ).toEqual(new Set([true, false]));
   });
 
   it('charges current scaled price, records ownership, and keeps it after leaving', () => {
@@ -393,6 +426,7 @@ describe('household goods', () => {
         ...p,
         locationId: 'shop',
         money: 100,
+        timeRemaining: 0.1,
       })),
     }));
     const stock = householdStockForWeek(
@@ -406,6 +440,7 @@ describe('household goods', () => {
     expect(game.getState().players[0]).toMatchObject({
       money: 100 - good.basePrice,
       ownedGoods: [good.id],
+      timeRemaining: 0.1,
     });
     game.setState((state) => ({
       players: state.players.map((p) => ({ ...p, locationId: 'cabin' })),

@@ -195,11 +195,6 @@ function validateHouseholdGoods(pack: DataPack, problems: string[]) {
     if (!(good.stockChance >= 0 && good.stockChance <= 1)) {
       problems.push(`${what} needs a stock chance between 0 and 1.`);
     }
-    if (!(good.timeHours >= 0 && good.timeHours <= MAX_TIME)) {
-      problems.push(
-        `${what} needs a Time cost between 0 and ${MAX_TIME} hours.`,
-      );
-    }
   }
 }
 

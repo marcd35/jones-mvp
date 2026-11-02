@@ -520,10 +520,6 @@ const gameStoreCreator =
           notify(`You need $${price} for ${good.name}.`);
           return;
         }
-        if (player.timeRemaining < good.timeHours) {
-          notify('Not enough time to shop!');
-          return;
-        }
         set((s) =>
           settle(
             s,
@@ -531,9 +527,6 @@ const gameStoreCreator =
               players: patchActive(s, {
                 money: player.money - price,
                 ownedGoods: [...player.ownedGoods, goodId],
-                timeRemaining: roundHours(
-                  player.timeRemaining - good.timeHours,
-                ),
               }),
             },
             `Bought ${good.name} for $${price}.`,
