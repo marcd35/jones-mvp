@@ -7,7 +7,9 @@ import { LocationTile } from './LocationTile';
 import { LocationModal } from './LocationModal';
 
 export function Board() {
-  const { currentLocationId, movePlayer, timeRemaining } = useGameStore();
+  const currentLocationId = useGameStore((s) => s.currentLocationId);
+  const movePlayer = useGameStore((s) => s.movePlayer);
+  const timeRemaining = useGameStore((s) => s.timeRemaining);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleTileAction = (locationId: string) => {

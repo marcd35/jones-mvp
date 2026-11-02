@@ -4,7 +4,9 @@ import { useGameStore } from '@/store/useGameStore';
 import { Button } from '@/components/ui/Button';
 
 export function GameOver() {
-  const { gameStatus, resetGame, money } = useGameStore();
+  const gameStatus = useGameStore((s) => s.gameStatus);
+  const resetGame = useGameStore((s) => s.resetGame);
+  const money = useGameStore((s) => s.money);
 
   if (gameStatus === 'playing') return null;
 

@@ -1,7 +1,15 @@
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
-import { LOCATIONS, JOBS, TUITION_COST } from '@/lib/constants';
+import {
+  CLASS_HOURS,
+  FOOD_COST,
+  JOBS,
+  LOCATIONS,
+  MEAL_HOURS,
+  TUITION_COST,
+  WORK_SHIFTS,
+} from '@/lib/constants';
 
 interface LocationModalProps {
   isOpen: boolean;
@@ -9,15 +17,14 @@ interface LocationModalProps {
 }
 
 export function LocationModal({ isOpen, onClose }: LocationModalProps) {
-  const {
-    currentLocationId,
-    work,
-    eat,
-    attendClass,
-    money,
-    timeRemaining,
-    educationLevel,
-  } = useGameStore();
+  const currentLocationId = useGameStore((s) => s.currentLocationId);
+  const work = useGameStore((s) => s.work);
+  const eat = useGameStore((s) => s.eat);
+  const attendClass = useGameStore((s) => s.attendClass);
+  const money = useGameStore((s) => s.money);
+  const timeRemaining = useGameStore((s) => s.timeRemaining);
+  const educationLevel = useGameStore((s) => s.educationLevel);
+  const hasEaten = useGameStore((s) => s.hasEaten);
 
   const currentLocation = LOCATIONS.find((l) => l.id === currentLocationId);
 
@@ -51,26 +58,19 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={() => {
-                          work(job.id, 4);
-                          onClose();
-                        }}
-                        disabled={timeRemaining < 4}
-                        className="text-sm"
-                      >
-                        Work 4hrs
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          work(job.id, 8);
-                          onClose();
-                        }}
-                        disabled={timeRemaining < 8}
-                        className="text-sm"
-                      >
-                        Work 8hrs
-                      </Button>
+                      {WORK_SHIFTS.map((hours) => (
+                        <Button
+                          key={hours}
+                          onClick={() => {
+                            work(job.id, hours);
+                            onClose();
+                          }}
+                          disabled={timeRemaining < hours}
+                          className="text-sm"
+                        >
+                          Work {hours}hrs
+                        </Button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -92,9 +92,9 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                 onClose();
               }}
               className="w-full bg-indigo-600 hover:bg-indigo-700"
-              disabled={money < TUITION_COST || timeRemaining < 4}
+              disabled={money < TUITION_COST || timeRemaining < CLASS_HOURS}
             >
-              Attend Class (-${TUITION_COST} / 4hrs)
+              Attend Class (-${TUITION_COST} / {CLASS_HOURS}hrs)
             </Button>
           </div>
         )}
@@ -107,9 +107,13 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
               onClose();
             }}
             className="w-full bg-orange-600 hover:bg-orange-700"
-            disabled={money < 15 || timeRemaining < 1}
+            disabled={
+              hasEaten || money < FOOD_COST || timeRemaining < MEAL_HOURS
+            }
           >
-            Buy Meal ($15 / 1hr)
+            {hasEaten
+              ? 'Already ate this week'
+              : `Buy Meal ($${FOOD_COST} / ${MEAL_HOURS}hr)`}
           </Button>
         )}
 

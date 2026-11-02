@@ -7,11 +7,11 @@ const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       ref={ref}
       className={cn(
         'rounded-xl border border-slate-700 bg-slate-800/50 text-slate-100 shadow-sm',
-        className
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
 Card.displayName = 'Card';
 

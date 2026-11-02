@@ -1,4 +1,5 @@
 import { Location } from '@/types';
+import { TRAVEL_COST } from '@/lib/constants';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -66,7 +67,7 @@ export function LocationTile({
             variant="secondary"
             className="w-full"
           >
-            Travel Here (1hr)
+            Travel Here ({TRAVEL_COST}hr)
           </Button>
         )}
       </div>
