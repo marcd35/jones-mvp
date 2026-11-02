@@ -6,24 +6,28 @@ import {
   GameStatus,
   GoalId,
   GoalPoints,
+  Job,
   Player,
   WeekEndReason,
   WeekendEffectId,
 } from '@/types';
 import {
   CLASS_HOURS,
-  FOOD_COST,
   MAX_TIME,
-  MEAL_HOURS,
   RENT_COST,
   RENT_INTERVAL,
-  STARVATION_TIME_PENALTY,
   TUITION_COST,
 } from '@/lib/constants';
 import { defaultPack } from '@/data';
 import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
 import { walkingCostHours, walkingSteps } from '@/lib/board';
+import {
+  clothesState,
+  meetsClothing,
+  tierOf,
+  wearOneWeek,
+} from '@/lib/clothing';
 import { allGoalsMet, clampGoalPoints, totalGoalPoints } from '@/lib/goals';
 import {
   drawSeed,
@@ -42,7 +46,8 @@ interface GameActions {
   hire: (jobId: string) => void;
   work: () => void;
   dismissWeekendReport: () => void;
-  eat: () => void;
+  buyFood: (goodId: string) => void;
+  buyClothes: (tierId: string) => void;
   attendClass: () => void;
   endTurn: () => void;
   resetGame: () => void;
@@ -57,7 +62,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -80,8 +85,9 @@ const newPlayer = (pack: DataPack): Player => ({
   money: pack.startingMoney,
   timeRemaining: MAX_TIME,
   educationLevel: 0,
-  hasEaten: false,
+  foodWeeks: 0,
   isStarving: false,
+  clothes: { tierId: pack.clothing.startTierId, weeksWorn: 0 },
   locationId: pack.homeLocationId,
   jobId: null,
   goals: defaultGoalPoints(pack),
@@ -116,6 +122,21 @@ const gameStoreCreator =
     // A shop price at this Week's level (AC-010).
     const priceOf = (base: number) => scalePrice(base, get().priceLevel);
 
+    // Why the Player's clothes bar the job, or null when they meet its
+    // requirement (AC-008).
+    const clothingBlock = (job: Job, clothes: Player['clothes']) => {
+      if (meetsClothing(pack.clothing, clothes, job.clothingRequired)) {
+        return null;
+      }
+      const need = pack.clothing.tiers.find(
+        (t) => t.id === job.clothingRequired,
+      );
+      const shop = locationOf(pack.clothing.locationId)?.name ?? 'the shop';
+      return clothesState(pack.clothing, clothes) === 'worn'
+        ? `Your clothes are worn out. Buy new ones at ${shop} to work as ${job.title}.`
+        : `You need ${need?.name ?? 'better clothes'} or better to work as ${job.title}. Buy them at ${shop}.`;
+    };
+
     // Records an event without changing anything else.
     const notify = (message: string) =>
       set((state) => withEvent(state, message));
@@ -141,14 +162,25 @@ const gameStoreCreator =
       let eventLog = intro;
       const said: Partial<Record<WeekendEffectId, string>> = {};
 
-      // 1. Food: hunger
-      const isStarvingNow = !player.hasEaten;
+      // 1. Food: a Week with no food costs Time next Week (AC-007). Eating
+      // this Week leaves nothing owing from earlier Weeks (UNK-006).
+      const isStarvingNow = player.foodWeeks <= 0;
+      const foodLeft = Math.max(0, player.foodWeeks - 1);
       if (isStarvingNow) {
-        said.food = 'You are starving! Less time next week.';
-        eventLog += 'You are starving! Less time next week. ';
+        said.food = `No food this Week. You lose ${pack.food.penaltyHours} hours next Week.`;
+        eventLog += `${said.food} `;
+      } else {
+        said.food = foodLeft
+          ? `Fed. Food in hand for ${foodLeft} more ${foodLeft === 1 ? 'Week' : 'Weeks'}.`
+          : 'Fed. No food left for next Week.';
       }
 
-      // 2. Clothing wear: not built yet.
+      // 2. Clothing wear: one more Week of wear (AC-008).
+      const wear = wearOneWeek(pack.clothing, player.clothes);
+      if (wear.text) {
+        said.clothing = wear.text;
+        eventLog += `${wear.text} `;
+      }
 
       // 3. Rent due (every 4th week: 4, 8, 12...)
       if (state.currentWeek % RENT_INTERVAL === 0) {
@@ -183,14 +215,15 @@ const gameStoreCreator =
 
       // Next Turn: full Time (less the hunger penalty), back at home.
       const nextMaxTime = isStarvingNow
-        ? MAX_TIME - STARVATION_TIME_PENALTY
+        ? MAX_TIME - pack.food.penaltyHours
         : MAX_TIME;
 
       const players = patchActive(state, {
         timeRemaining: nextMaxTime,
         money: currentMoney,
-        hasEaten: false,
+        foodWeeks: foodLeft,
         isStarving: isStarvingNow,
+        clothes: wear.clothes,
         locationId: pack.homeLocationId,
       });
       if (status === 'playing') status = endStatus({ ...state, players });
@@ -334,6 +367,11 @@ const gameStoreCreator =
           notify(`You already work as ${job.title}.`);
           return;
         }
+        const dressed = clothingBlock(job, player.clothes);
+        if (dressed) {
+          notify(dressed);
+          return;
+        }
 
         set((s) => ({
           players: patchActive(s, { jobId }),
@@ -347,7 +385,8 @@ const gameStoreCreator =
       work: () => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
-        const { timeRemaining, locationId, jobId } = activePlayer(state);
+        const { timeRemaining, locationId, jobId, clothes } =
+          activePlayer(state);
 
         const job = pack.jobs.find((j) => j.id === jobId);
         if (!job) {
@@ -358,6 +397,11 @@ const gameStoreCreator =
           notify(
             `You must be at ${locationOf(job.locationId)?.name ?? 'work'} to work.`,
           );
+          return;
+        }
+        const dressed = clothingBlock(job, clothes);
+        if (dressed) {
+          notify(dressed);
           return;
         }
         if (timeRemaining < job.workTimeHours) {
@@ -385,19 +429,23 @@ const gameStoreCreator =
         });
       },
 
-      eat: () => {
+      buyFood: (goodId) => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
-        const { money, timeRemaining, hasEaten, locationId } =
-          activePlayer(state);
-        if (locationOf(locationId)?.type !== 'store') return;
-        if (hasEaten) {
-          notify('You already ate this week.');
+        const { money, timeRemaining, locationId } = activePlayer(state);
+        const good = pack.food.goods.find((g) => g.id === goodId);
+        if (!good) return;
+        if (good.locationId !== locationId) {
+          notify(`${good.name} is not sold here.`);
           return;
         }
-        const foodCost = priceOf(FOOD_COST);
-        if (money < foodCost || timeRemaining < MEAL_HOURS) {
-          notify("Can't afford food or no time!");
+        const price = priceOf(good.basePrice);
+        if (money < price) {
+          notify(`You need $${price} for ${good.name}.`);
+          return;
+        }
+        if (timeRemaining < good.timeHours) {
+          notify('Not enough time to buy food!');
           return;
         }
 
@@ -407,15 +455,57 @@ const gameStoreCreator =
             s,
             {
               players: patchActive(s, {
-                money: player.money - foodCost,
-                hasEaten: true,
-                isStarving: false,
-                timeRemaining: roundHours(player.timeRemaining - MEAL_HOURS),
+                money: player.money - price,
+                foodWeeks: player.foodWeeks + good.weeks,
+                timeRemaining: roundHours(
+                  player.timeRemaining - good.timeHours,
+                ),
               }),
             },
-            'You ate a meal. Hunger satisfied.',
+            `Bought ${good.name} for $${price}.`,
           );
         });
+      },
+
+      buyClothes: (tierId) => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const { money, locationId, clothes } = activePlayer(state);
+        const tier = pack.clothing.tiers.find((t) => t.id === tierId);
+        if (!tier) return;
+        if (locationId !== pack.clothing.locationId) {
+          notify(`${tier.name} are not sold here.`);
+          return;
+        }
+        const price = priceOf(tier.basePrice);
+        if (money < price) {
+          notify(`You need $${price} for ${tier.name}.`);
+          return;
+        }
+        // Good clothes of the same or a higher tier are not worth replacing;
+        // ones about to wear out, or worn out, are.
+        const have = tierOf(pack.clothing, clothes);
+        if (
+          have &&
+          clothesState(pack.clothing, clothes) === 'good' &&
+          have.rank >= tier.rank
+        ) {
+          notify(`Your ${have.name} are still good.`);
+          return;
+        }
+
+        set((s) =>
+          settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: money - price,
+                clothes: { tierId, weeksWorn: 0 },
+              }),
+            },
+            `Bought ${tier.name} for $${price}.`,
+          ),
+        );
       },
 
       attendClass: () => {
@@ -501,7 +591,10 @@ export const useGameStore = create<GameStore>()(
       // v1 kept the Player's stats at the top level of the save.
       if (version < 2) {
         const fresh = newPlayer(gamePack);
-        const old = state as Partial<Player> & { currentLocationId?: string };
+        const old = state as Partial<Player> & {
+          currentLocationId?: string;
+          hasEaten?: boolean; // Replaced by foodWeeks in v6
+        };
         const locationId =
           LEGACY_LOCATION_IDS[old.currentLocationId ?? ''] ??
           old.currentLocationId;
@@ -511,7 +604,7 @@ export const useGameStore = create<GameStore>()(
           money: old.money ?? fresh.money,
           timeRemaining: old.timeRemaining ?? fresh.timeRemaining,
           educationLevel: old.educationLevel ?? fresh.educationLevel,
-          hasEaten: old.hasEaten ?? fresh.hasEaten,
+          foodWeeks: old.hasEaten ? 1 : fresh.foodWeeks,
           isStarving: old.isStarving ?? fresh.isStarving,
           locationId: known ? (locationId as string) : fresh.locationId,
         };
@@ -553,6 +646,18 @@ export const useGameStore = create<GameStore>()(
         state.priceLevel = gamePack.inflation.startLevel;
         state.priceSeed = drawSeed(gameRandom);
         state.newspaper = null;
+      }
+      // v6 replaced hasEaten with the Weeks of food in hand, and added the
+      // Player's clothes (new ones: a saved game has no wear history).
+      if (version < 6) {
+        const old = state.players as (Partial<Player> & {
+          hasEaten?: boolean;
+        })[];
+        state.players = old.map(({ hasEaten, ...p }) => ({
+          ...p,
+          foodWeeks: p.foodWeeks ?? (hasEaten ? 1 : 0),
+          clothes: p.clothes ?? newPlayer(gamePack).clothes,
+        }));
       }
       return state as never;
     },

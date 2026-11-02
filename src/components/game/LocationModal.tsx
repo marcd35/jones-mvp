@@ -2,12 +2,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
 import { defaultPack } from '@/data';
-import {
-  CLASS_HOURS,
-  FOOD_COST,
-  MEAL_HOURS,
-  TUITION_COST,
-} from '@/lib/constants';
+import { CLASS_HOURS, TUITION_COST } from '@/lib/constants';
+import { clothesState, meetsClothing, tierOf, weeksLeft } from '@/lib/clothing';
 import { scalePrice } from '@/lib/inflation';
 import { formatHours } from './TimeDial';
 
@@ -23,18 +19,22 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     money,
     timeRemaining,
     educationLevel,
-    hasEaten,
+    foodWeeks,
+    clothes,
     jobId,
   } = player;
   const hire = useGameStore((s) => s.hire);
   const work = useGameStore((s) => s.work);
-  const eat = useGameStore((s) => s.eat);
+  const buyFood = useGameStore((s) => s.buyFood);
+  const buyClothes = useGameStore((s) => s.buyClothes);
   const attendClass = useGameStore((s) => s.attendClass);
   const priceLevel = useGameStore((s) => s.priceLevel);
   const newspaper = useGameStore((s) => s.newspaper);
   // Shop prices at this Week's hidden level (AC-010).
   const tuition = scalePrice(TUITION_COST, priceLevel);
-  const mealCost = scalePrice(FOOD_COST, priceLevel);
+  const { food, clothing } = defaultPack;
+  const myTier = tierOf(clothing, clothes);
+  const wornState = clothesState(clothing, clothes);
 
   const currentLocation = defaultPack.locations.find(
     (l) => l.id === currentLocationId,
@@ -46,6 +46,12 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
   );
   const locationName = (id: string) =>
     defaultPack.locations.find((l) => l.id === id)?.name ?? id;
+  const tierName = (id: string) =>
+    clothing.tiers.find((t) => t.id === id)?.name ?? id;
+  const localFood = food.goods.filter(
+    (g) => g.locationId === currentLocationId,
+  );
+  const sellsClothes = currentLocationId === clothing.locationId;
 
   if (!currentLocation) return null;
 
@@ -70,7 +76,15 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                   <span className="font-bold text-white">{job.title}</span>
                   <span className="text-green-400">${job.wage}/hr</span>
                 </div>
-                {jobId === job.id ? (
+                {jobId === job.id &&
+                !meetsClothing(clothing, clothes, job.clothingRequired) ? (
+                  <p className="text-xs text-red-400">
+                    {wornState === 'worn'
+                      ? 'Your clothes are worn out. '
+                      : `Needs ${tierName(job.clothingRequired ?? '')}. `}
+                    Buy clothes at {locationName(clothing.locationId)}.
+                  </p>
+                ) : jobId === job.id ? (
                   <Button
                     onClick={() => work()}
                     disabled={timeRemaining < job.workTimeHours}
@@ -107,9 +121,25 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
                     {locationName(job.locationId)}: ${job.wage * job.shiftHours}{' '}
                     a shift
                   </p>
+                  {job.clothingRequired !== undefined && (
+                    <p className="mb-2 text-xs text-slate-400">
+                      Dress: {tierName(job.clothingRequired)} or better
+                    </p>
+                  )}
                   {!isQualified ? (
                     <p className="text-xs text-red-400">
                       Requires Education Lvl {job.educationRequired}
+                    </p>
+                  ) : !meetsClothing(
+                      clothing,
+                      clothes,
+                      job.clothingRequired,
+                    ) ? (
+                    <p className="text-xs text-red-400">
+                      {wornState === 'worn'
+                        ? 'Your clothes are worn out.'
+                        : `Requires ${tierName(job.clothingRequired ?? '')}.`}{' '}
+                      Buy clothes at {locationName(clothing.locationId)}.
                     </p>
                   ) : jobId === job.id ? (
                     <p className="text-xs font-bold text-green-400">Your job</p>
@@ -148,22 +178,66 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
           </div>
         )}
 
-        {/* === STORE INTERACTION === */}
-        {currentLocation.type === 'store' && (
-          <Button
-            onClick={() => {
-              eat();
-              onClose();
-            }}
-            className="w-full bg-orange-600 hover:bg-orange-700"
-            disabled={
-              hasEaten || money < mealCost || timeRemaining < MEAL_HOURS
-            }
-          >
-            {hasEaten
-              ? 'Already ate this week'
-              : `Buy Meal ($${mealCost} / ${MEAL_HOURS}hr)`}
-          </Button>
+        {/* === FOOD (AC-007): any Location whose data sells food === */}
+        {localFood.length > 0 && (
+          <section aria-label="Food" className="space-y-2">
+            <p className="flex justify-between text-sm text-slate-300">
+              <span>Food in hand</span>
+              <span className="font-bold text-white">
+                {foodWeeks > 0
+                  ? `${foodWeeks} ${foodWeeks === 1 ? 'Week' : 'Weeks'}`
+                  : 'None: this Week needs food'}
+              </span>
+            </p>
+            {localFood.map((good) => {
+              const price = scalePrice(good.basePrice, priceLevel);
+              return (
+                <Button
+                  key={good.id}
+                  onClick={() => buyFood(good.id)}
+                  className="min-h-11 w-full bg-orange-600 hover:bg-orange-700"
+                  disabled={money < price || timeRemaining < good.timeHours}
+                >
+                  Buy {good.name} (${price} / {formatHours(good.timeHours)}hr)
+                </Button>
+              );
+            })}
+          </section>
+        )}
+
+        {/* === CLOTHING (AC-008): the Location the data names === */}
+        {sellsClothes && (
+          <section aria-label="Clothing" className="space-y-2">
+            <p className="flex justify-between text-sm text-slate-300">
+              <span>You wear</span>
+              <span
+                className={
+                  wornState === 'good' ? 'text-white' : 'text-orange-300'
+                }
+              >
+                {!myTier
+                  ? 'Nothing'
+                  : wornState === 'worn'
+                    ? `${myTier.name} (worn out)`
+                    : wornState === 'warning'
+                      ? `${myTier.name} (wears out in ${weeksLeft(clothing, clothes)} ${weeksLeft(clothing, clothes) === 1 ? 'Week' : 'Weeks'})`
+                      : myTier.name}
+              </span>
+            </p>
+            {clothing.tiers.map((tier) => {
+              const price = scalePrice(tier.basePrice, priceLevel);
+              return (
+                <Button
+                  key={tier.id}
+                  onClick={() => buyClothes(tier.id)}
+                  className="min-h-11 w-full bg-teal-700 hover:bg-teal-800"
+                  disabled={money < price}
+                >
+                  Buy {tier.name} (${price})
+                </Button>
+              );
+            })}
+          </section>
         )}
 
         {/* === HOUSING INTERACTION === */}

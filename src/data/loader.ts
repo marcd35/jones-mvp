@@ -81,6 +81,14 @@ export function validatePack(pack: DataPack): string[] {
         `Job "${job.id}" needs an education requirement of at least 0.`,
       );
     }
+    if (
+      job.clothingRequired !== undefined &&
+      !pack.clothing.tiers.some((t) => t.id === job.clothingRequired)
+    ) {
+      problems.push(
+        `Job "${job.id}" needs unknown clothing tier "${job.clothingRequired}".`,
+      );
+    }
   }
   const home = locations.find((l) => l.id === pack.homeLocationId);
   if (!home)
@@ -126,6 +134,9 @@ export function validatePack(pack: DataPack): string[] {
     }
   }
 
+  validateFood(pack, problems);
+  validateClothing(pack, problems);
+
   const costs = Object.entries(pack.walkingCosts);
   if (costs.length === 0) problems.push('Walking-cost table is empty.');
   for (const [steps, percent] of costs) {
@@ -137,6 +148,87 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   return problems;
+}
+
+// A Location that sells something must exist and be open.
+function validateSeller(
+  pack: DataPack,
+  problems: string[],
+  what: string,
+  locationId: string,
+) {
+  const at = pack.locations.find((l) => l.id === locationId);
+  if (!at) problems.push(`${what} is at unknown Location "${locationId}".`);
+  else if (at.closed)
+    problems.push(`${what} is at closed Location "${at.id}".`);
+}
+
+function validateFood(pack: DataPack, problems: string[]) {
+  const { food } = pack;
+  if (!(food.penaltyHours >= 0 && food.penaltyHours < MAX_TIME)) {
+    problems.push(
+      `The hunger penalty must be at least 0 and less than a Week of ${MAX_TIME} hours.`,
+    );
+  }
+  const ids = new Set<string>();
+  for (const good of food.goods) {
+    const what = `Food "${good.id}"`;
+    if (ids.has(good.id)) problems.push(`${what} is defined twice.`);
+    ids.add(good.id);
+    validateSeller(pack, problems, what, good.locationId);
+    if (!Number.isInteger(good.weeks) || good.weeks < 1) {
+      problems.push(`${what} needs a whole number of Weeks, at least 1.`);
+    }
+    if (!(good.basePrice >= 0)) {
+      problems.push(`${what} needs a price of at least 0.`);
+    }
+    if (!(good.timeHours >= 0 && good.timeHours <= MAX_TIME)) {
+      problems.push(
+        `${what} needs a Time cost between 0 and ${MAX_TIME} hours.`,
+      );
+    }
+  }
+}
+
+function validateClothing(pack: DataPack, problems: string[]) {
+  const { clothing } = pack;
+  validateSeller(pack, problems, 'The clothing shop', clothing.locationId);
+  if (clothing.tiers.length === 0) {
+    problems.push('Clothing needs at least one tier.');
+  }
+  const ids = new Set<string>();
+  const ranks = new Set<number>();
+  for (const tier of clothing.tiers) {
+    if (ids.has(tier.id)) {
+      problems.push(`Clothing tier "${tier.id}" is defined twice.`);
+    }
+    ids.add(tier.id);
+    if (ranks.has(tier.rank)) {
+      problems.push(
+        `Clothing tier "${tier.id}" repeats the rank ${tier.rank}.`,
+      );
+    }
+    ranks.add(tier.rank);
+    if (!(tier.basePrice >= 0)) {
+      problems.push(`Clothing tier "${tier.id}" needs a price of at least 0.`);
+    }
+  }
+  if (!ids.has(clothing.startTierId)) {
+    problems.push(
+      `The starting clothes "${clothing.startTierId}" are not a clothing tier.`,
+    );
+  }
+  if (!Number.isInteger(clothing.wearOutWeeks) || clothing.wearOutWeeks < 1) {
+    problems.push('Clothes need to last a whole number of Weeks, at least 1.');
+  } else if (
+    !Number.isInteger(clothing.warnWeeks) ||
+    clothing.warnWeeks < 0 ||
+    clothing.warnWeeks >= clothing.wearOutWeeks
+  ) {
+    problems.push(
+      'The clothing warning must be a whole number of Weeks, at least 0 and less than the Weeks clothes last.',
+    );
+  }
 }
 
 // Validates on load; an invalid pack fails with every problem listed.

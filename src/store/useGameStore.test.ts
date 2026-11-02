@@ -8,12 +8,9 @@ import { walkingCostHours, walkingSteps } from '@/lib/board';
 import type { DataPack, GameState, Player } from '@/types';
 import {
   CLASS_HOURS,
-  FOOD_COST,
   MAX_TIME,
-  MEAL_HOURS,
   RENT_COST,
   RENT_INTERVAL,
-  STARVATION_TIME_PENALTY,
   TUITION_COST,
 } from '@/lib/constants';
 
@@ -26,6 +23,14 @@ const WORK = ENTRY_JOB.locationId;
 const EMPLOYMENT = 'employment-office';
 const STORE = 'z-mart';
 const UNI = 'hi-tech-u';
+const MARKET = 'blacks-market';
+const CLOTHES_SHOP = defaultPack.clothing.locationId;
+const PENALTY = defaultPack.food.penaltyHours;
+const FRIES = defaultPack.food.goods.find(
+  (g) => g.locationId === 'monolith-burger',
+)!;
+const FOOD_OF = (id: string) =>
+  defaultPack.food.goods.find((g) => g.id === id)!;
 
 const store = () => useGameStore.getState();
 const player = () => store().players[store().turnIndex];
@@ -63,8 +68,9 @@ describe('initial state', () => {
       money: STARTING_MONEY,
       timeRemaining: MAX_TIME,
       educationLevel: 0,
-      hasEaten: false,
+      foodWeeks: 0,
       isStarving: false,
+      clothes: { tierId: defaultPack.clothing.startTierId, weeksWorn: 0 },
       locationId: HOME,
     });
   });
@@ -125,7 +131,7 @@ describe('walkTo', () => {
 
   it('starts an overrunning walk, ends the Week at once and sends the Player home', () => {
     store().walkTo(WORK);
-    setPlayer({ timeRemaining: 0.3, hasEaten: true });
+    setPlayer({ timeRemaining: 0.3, foodWeeks: 1 });
     store().walkTo(STORE); // costs more than 0.3 hours
     expect(player().locationId).toBe(HOME);
     expect(player().timeRemaining).toBe(MAX_TIME);
@@ -139,7 +145,7 @@ describe('walkTo', () => {
     store().walkTo(STORE);
     expect(player().money).toBe(300 - RENT_COST);
     expect(player().isStarving).toBe(true);
-    expect(player().timeRemaining).toBe(MAX_TIME - STARVATION_TIME_PENALTY);
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
   });
 
   it('can lose the game when an overrun walk triggers unpaid rent', () => {
@@ -150,7 +156,7 @@ describe('walkTo', () => {
   });
 
   it('succeeds with exactly enough Time, then the Week ends because Time ran out', () => {
-    setPlayer({ timeRemaining: hoursFor(HOME, STORE), hasEaten: true });
+    setPlayer({ timeRemaining: hoursFor(HOME, STORE), foodWeeks: 1 });
     store().walkTo(STORE);
     expect(store().currentWeek).toBe(2);
     expect(store().weekendReport).toMatchObject({ week: 1, reason: 'time' });
@@ -238,6 +244,29 @@ const inventedPack: DataPack = {
     },
   ],
   rentOwedLimit: 40,
+  food: {
+    penaltyHours: 3,
+    goods: [
+      {
+        id: 'bread',
+        name: 'Bread',
+        locationId: 'shop',
+        weeks: 2,
+        basePrice: 6,
+        timeHours: 0.5,
+      },
+    ],
+  },
+  clothing: {
+    locationId: 'hall',
+    tiers: [
+      { id: 'rags', name: 'Rags', rank: 1, basePrice: 4 },
+      { id: 'cloak', name: 'Cloak', rank: 2, basePrice: 9 },
+    ],
+    startTierId: 'rags',
+    wearOutWeeks: 3,
+    warnWeeks: 1,
+  },
   // An invented rule: the level rises a quarter each Week.
   inflation: {
     startLevel: 1,
@@ -277,8 +306,8 @@ describe('data pack separation', () => {
 
     game.getState().walkTo('shop'); // one more Step
     expect(active().locationId).toBe('shop');
-    game.getState().eat();
-    expect(active().hasEaten).toBe(true);
+    game.getState().buyFood('bread');
+    expect(active().foodWeeks).toBe(2);
   });
 
   it('treats the invented closed Location as closed', () => {
@@ -427,18 +456,18 @@ describe('the Week ends (AC-004)', () => {
   });
 
   it('fills the slots of effects that exist and leaves the rest empty', () => {
-    store().endTurn(); // Week 1: hungry, no rent due
-    expect(text('food')).toMatch(/starving/i);
+    store().endTurn(); // Week 1: no food, no rent due
+    expect(text('food')).toMatch(/no food/i);
     expect(text('rent')).toBeNull();
     expect(text('clothing')).toBeNull();
   });
 
   it('puts rent in its own slot in a rent Week', () => {
     setState({ currentWeek: RENT_INTERVAL });
-    setPlayer({ money: 300, hasEaten: true });
+    setPlayer({ money: 300, foodWeeks: 1 });
     store().endTurn();
     expect(text('rent')).toMatch(new RegExp(`${RENT_COST}`));
-    expect(text('food')).toBeNull();
+    expect(text('food')).toMatch(/fed/i);
     expect(report().cash).toBe(300 - RENT_COST);
   });
 
@@ -453,7 +482,7 @@ describe('the Week ends (AC-004)', () => {
   });
 
   it('starts the next Turn at home with full Time, wherever the Player was', () => {
-    setPlayer({ locationId: WORK, timeRemaining: 3, hasEaten: true });
+    setPlayer({ locationId: WORK, timeRemaining: 3, foodWeeks: 1 });
     store().endTurn();
     expect(player().locationId).toBe(HOME);
     expect(player().timeRemaining).toBe(MAX_TIME);
@@ -463,7 +492,7 @@ describe('the Week ends (AC-004)', () => {
     setPlayer({ locationId: WORK });
     store().endTurn();
     expect(player().locationId).toBe(HOME);
-    expect(player().timeRemaining).toBe(MAX_TIME - STARVATION_TIME_PENALTY);
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
   });
 
   it('ends the Week by itself when an action uses the last of the Time', () => {
@@ -471,7 +500,7 @@ describe('the Week ends (AC-004)', () => {
       locationId: WORK,
       jobId: ENTRY_JOB.id,
       timeRemaining: ENTRY_JOB.workTimeHours,
-      hasEaten: true,
+      foodWeeks: 1,
     });
     store().work();
     expect(report()).toMatchObject({ week: 1, reason: 'time' });
@@ -482,7 +511,7 @@ describe('the Week ends (AC-004)', () => {
   });
 
   it('reports an overrunning walk as ending on the road', () => {
-    setPlayer({ timeRemaining: 0.1, hasEaten: true });
+    setPlayer({ timeRemaining: 0.1, foodWeeks: 1 });
     store().walkTo(STORE);
     expect(report().reason).toBe('road');
   });
@@ -506,42 +535,6 @@ describe('the Week ends (AC-004)', () => {
     }
     expect(player().money).toBe(STARTING_MONEY + 3 * 32);
     expect(store().currentWeek).toBe(4);
-  });
-});
-
-describe('eat', () => {
-  beforeEach(() => setPlayer({ locationId: STORE }));
-
-  it('spends money and an hour to satisfy hunger', () => {
-    store().eat();
-    expect(player()).toMatchObject({
-      money: STARTING_MONEY - FOOD_COST,
-      timeRemaining: MAX_TIME - MEAL_HOURS,
-      hasEaten: true,
-      isStarving: false,
-    });
-  });
-
-  it('refuses without enough money', () => {
-    setPlayer({ money: FOOD_COST - 1 });
-    store().eat();
-    expect(player().hasEaten).toBe(false);
-    expect(store().lastEvent).toBe("Can't afford food or no time!");
-  });
-
-  it('refuses a second meal in the same week', () => {
-    store().eat();
-    store().eat();
-    expect(player().money).toBe(STARTING_MONEY - FOOD_COST);
-    expect(player().timeRemaining).toBe(MAX_TIME - MEAL_HOURS);
-    expect(store().lastEvent).toMatch(/already/i);
-  });
-
-  it('refuses to buy food away from a store', () => {
-    setPlayer({ locationId: HOME });
-    store().eat();
-    expect(player().hasEaten).toBe(false);
-    expect(player().money).toBe(STARTING_MONEY);
   });
 });
 
@@ -584,15 +577,15 @@ describe('endTurn', () => {
   it('penalises time the week after going hungry', () => {
     store().endTurn();
     expect(player().isStarving).toBe(true);
-    expect(player().timeRemaining).toBe(MAX_TIME - STARVATION_TIME_PENALTY);
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
   });
 
   it('gives a full week after eating', () => {
-    setPlayer({ locationId: STORE });
-    store().eat();
+    setPlayer({ locationId: FRIES.locationId });
+    store().buyFood(FRIES.id);
     store().endTurn();
     expect(player().isStarving).toBe(false);
-    expect(player().hasEaten).toBe(false);
+    expect(player().foodWeeks).toBe(0);
     expect(player().timeRemaining).toBe(MAX_TIME);
   });
 
@@ -821,7 +814,7 @@ describe('winning and losing (AC-006)', () => {
     store().walkTo(STORE);
     store().work();
     store().endTurn();
-    store().eat();
+    store().buyFood(FRIES.id);
     expect(JSON.stringify(player())).toBe(before);
     store().resetGame();
     expect(store().gameStatus).toBe('setup');
@@ -916,7 +909,8 @@ describe('after the game has ended', () => {
       store().walkTo(STORE);
       store().hire(ENTRY_JOB.id);
       store().work();
-      store().eat();
+      store().buyFood(FRIES.id);
+      store().buyClothes('casual');
       store().attendClass();
       store().endTurn();
 
@@ -983,7 +977,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(5);
+    expect(persisted().version).toBe(6);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -1140,13 +1134,13 @@ describe('inflation (AC-010)', () => {
 
   it('scales the price of food and tuition by the level, rounding half up to the dollar', () => {
     setState({ priceLevel: 1.1 });
-    setPlayer({ money: 500, locationId: STORE });
-    store().eat();
-    // 15 x 1.10 = 16.50, which rounds up to 17.
-    expect(player().money).toBe(500 - 17);
+    setPlayer({ money: 500, locationId: FRIES.locationId });
+    store().buyFood(FRIES.id);
+    // 68 x 1.10 = 74.80, which rounds to 75.
+    expect(player().money).toBe(500 - 75);
     setPlayer({ locationId: UNI, timeRemaining: 12 });
     store().attendClass();
-    expect(player().money).toBe(500 - 17 - 110);
+    expect(player().money).toBe(500 - 75 - 110);
   });
 
   it('rounds to the nearest dollar, halves up, and at level 1.00 changes nothing', () => {
@@ -1158,12 +1152,12 @@ describe('inflation (AC-010)', () => {
     expect(scalePrice(100, 1.22)).toBe(122);
   });
 
-  it('refuses a meal the scaled price puts out of reach', () => {
+  it('refuses food the scaled price puts out of reach', () => {
     setState({ priceLevel: 1.22 });
-    setPlayer({ money: 16, locationId: STORE }); // $15 at 1.00, $18 at 1.22
-    store().eat();
-    expect(player().hasEaten).toBe(false);
-    expect(player().money).toBe(16);
+    setPlayer({ money: 70, locationId: FRIES.locationId }); // $68 at 1.00, $83 at 1.22
+    store().buyFood(FRIES.id);
+    expect(player().foodWeeks).toBe(0);
+    expect(player().money).toBe(70);
   });
 
   it('does not scale wages', () => {
@@ -1178,7 +1172,7 @@ describe('inflation (AC-010)', () => {
 
   it('does not scale rent here: rent belongs to T-09', () => {
     setState({ currentWeek: RENT_INTERVAL, priceLevel: 1.22 });
-    setPlayer({ money: 300, hasEaten: true });
+    setPlayer({ money: 300, foodWeeks: 1 });
     store().endTurn();
     expect(report().cash).toBe(300 - RENT_COST);
   });
@@ -1191,9 +1185,9 @@ describe('inflation (AC-010)', () => {
     expect(game.getState().priceLevel).toBe(1.5);
     game.getState().walkTo('shop');
     game.setState((s) => ({ players: [{ ...s.players[0], money: 100 }] }));
-    game.getState().eat();
+    game.getState().buyFood('bread');
     expect(game.getState().players[0].money).toBe(
-      100 - scalePrice(FOOD_COST, 1.5),
+      100 - scalePrice(inventedPack.food.goods[0].basePrice, 1.5),
     );
   });
 
@@ -1293,5 +1287,406 @@ describe('inflation (AC-010)', () => {
     expect(migrated.priceLevel).toBe(defaultPack.inflation.startLevel);
     expect(Number.isInteger(migrated.priceSeed)).toBe(true);
     expect(migrated.newspaper).toBeNull();
+  });
+});
+
+describe('food (AC-007)', () => {
+  const report = () => store().weekendReport!;
+  const foodLine = () => report().effects.find((e) => e.id === 'food')!.text;
+
+  it('sells one Week of food at Monolith Burger, for the scaled price and its Time', () => {
+    setPlayer({ locationId: FRIES.locationId });
+    store().buyFood(FRIES.id);
+    expect(player()).toMatchObject({
+      money: STARTING_MONEY - scalePrice(FRIES.basePrice, 1),
+      timeRemaining: MAX_TIME - FRIES.timeHours,
+      foodWeeks: FRIES.weeks,
+    });
+    expect(store().lastEvent).toMatch(/Bought/);
+  });
+
+  it.each(defaultPack.food.goods.filter((g) => g.locationId === MARKET))(
+    "sells $name at Black's Market covering its Weeks",
+    (good) => {
+      setState({ priceLevel: 1.22 });
+      setPlayer({ locationId: MARKET, money: 1000 });
+      store().buyFood(good.id);
+      expect(player().foodWeeks).toBe(good.weeks);
+      expect(player().money).toBe(1000 - scalePrice(good.basePrice, 1.22));
+    },
+  );
+
+  it("matches the observed Week 7 prices of Black's Market food (UNK-004)", () => {
+    const price = (id: string) => scalePrice(FOOD_OF(id).basePrice, 1.22);
+    expect([
+      price('market-food-1'),
+      price('market-food-2'),
+      price('market-food-4'),
+    ]).toEqual([70, 128, 243]);
+  });
+
+  it('adds to the food already in hand', () => {
+    setPlayer({ locationId: MARKET, money: 1000, foodWeeks: 1 });
+    store().buyFood('market-food-2');
+    expect(player().foodWeeks).toBe(3);
+  });
+
+  it('refuses without enough money', () => {
+    setPlayer({ locationId: FRIES.locationId, money: 1 });
+    store().buyFood(FRIES.id);
+    expect(player()).toMatchObject({ money: 1, foodWeeks: 0 });
+    expect(store().lastEvent).toMatch(/You need \$68/);
+  });
+
+  it('refuses with too little Time, and the Week goes on', () => {
+    setPlayer({ locationId: FRIES.locationId, timeRemaining: 0.5 });
+    store().buyFood(FRIES.id);
+    expect(player()).toMatchObject({
+      money: STARTING_MONEY,
+      foodWeeks: 0,
+      timeRemaining: 0.5,
+    });
+    expect(store().currentWeek).toBe(1);
+    expect(store().lastEvent).toMatch(/not enough time/i);
+  });
+
+  it('refuses at a Location that does not sell it, and at home', () => {
+    setPlayer({ locationId: MARKET });
+    store().buyFood(FRIES.id); // Fries are Monolith Burger's
+    setPlayer({ locationId: HOME });
+    store().buyFood('market-food-1');
+    expect(player()).toMatchObject({ money: STARTING_MONEY, foodWeeks: 0 });
+    expect(store().lastEvent).toMatch(/not sold here/i);
+  });
+
+  it('cannot be bought at a closed Location: the Player never gets in', () => {
+    store().walkTo('bank'); // closed
+    expect(store().lastEvent).toMatch(/closed/i);
+    store().buyFood('market-food-1');
+    expect(player()).toMatchObject({ locationId: HOME, foodWeeks: 0 });
+  });
+
+  it('ignores an unknown food', () => {
+    setPlayer({ locationId: MARKET });
+    store().buyFood('caviar');
+    expect(player().money).toBe(STARTING_MONEY);
+  });
+
+  it('skipping food costs the data penalty off the next Week, and is reported', () => {
+    store().endTurn();
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
+    expect(player().isStarving).toBe(true);
+    expect(foodLine()).toMatch(/no food/i);
+    expect(foodLine()).toContain(`${PENALTY} hours`);
+  });
+
+  it('eating this Week means no penalty next Week', () => {
+    setPlayer({ locationId: FRIES.locationId });
+    store().buyFood(FRIES.id);
+    store().endTurn();
+    expect(player()).toMatchObject({
+      timeRemaining: MAX_TIME,
+      isStarving: false,
+      foodWeeks: 0,
+    });
+    expect(foodLine()).toMatch(/fed.*no food left/i);
+  });
+
+  it('a bundle covers its Weeks, then the penalty returns', () => {
+    setPlayer({ locationId: MARKET, money: 1000 });
+    store().buyFood('market-food-2');
+    store().endTurn();
+    expect(foodLine()).toMatch(/1 more Week\./);
+    expect(player().timeRemaining).toBe(MAX_TIME);
+    store().endTurn();
+    expect(player().timeRemaining).toBe(MAX_TIME);
+    expect(player().foodWeeks).toBe(0);
+    store().endTurn();
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
+  });
+
+  it('does not stack the penalty over hungry Weeks', () => {
+    store().endTurn();
+    store().endTurn();
+    store().endTurn();
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
+  });
+
+  it('eating clears the earlier hunger: a fed Week after a hungry one costs nothing (UNK-006 rule)', () => {
+    store().endTurn(); // hungry Week 1
+    expect(player().timeRemaining).toBe(MAX_TIME - PENALTY);
+    setPlayer({ locationId: FRIES.locationId });
+    store().buyFood(FRIES.id);
+    store().endTurn(); // fed Week 2
+    expect(player().timeRemaining).toBe(MAX_TIME);
+  });
+
+  it('counts food bought with the last of the Time toward the Week it ends', () => {
+    setPlayer({ locationId: FRIES.locationId, timeRemaining: FRIES.timeHours });
+    store().buyFood(FRIES.id);
+    expect(report()).toMatchObject({ week: 1, reason: 'time' });
+    expect(player().timeRemaining).toBe(MAX_TIME);
+  });
+
+  it('does not touch rent: rent due still comes in its own slot', () => {
+    setState({ currentWeek: RENT_INTERVAL });
+    setPlayer({ money: 300 });
+    store().endTurn();
+    expect(report().cash).toBe(300 - RENT_COST);
+  });
+});
+
+describe('clothing (AC-008)', () => {
+  const rules = defaultPack.clothing;
+  const report = () => store().weekendReport!;
+  const clothingLine = () =>
+    report().effects.find((e) => e.id === 'clothing')!.text;
+  // A Week with food, so only the clothes are in play.
+  const fedWeek = () => {
+    setPlayer({ foodWeeks: 1 });
+    store().endTurn();
+  };
+
+  it('starts the Player in the data clothes, brand new', () => {
+    expect(player().clothes).toEqual({
+      tierId: rules.startTierId,
+      weeksWorn: 0,
+    });
+  });
+
+  it('wears one Week at a time and says nothing until the warning', () => {
+    fedWeek();
+    expect(player().clothes!.weeksWorn).toBe(1);
+    expect(clothingLine()).toBeNull();
+  });
+
+  it('warns before the clothes wear out, then says they have', () => {
+    for (let i = 0; i < rules.wearOutWeeks - rules.warnWeeks; i++) fedWeek();
+    expect(clothingLine()).toMatch(/will wear out in 1 Week/);
+    expect(store().lastEvent).toMatch(/will wear out/);
+    for (let i = 0; i < rules.warnWeeks; i++) fedWeek();
+    expect(clothingLine()).toMatch(/worn out/);
+    expect(player().clothes!.weeksWorn).toBe(rules.wearOutWeeks);
+  });
+
+  it('stops counting once worn out and reports no further change', () => {
+    setPlayer({ clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks } });
+    fedWeek();
+    expect(player().clothes!.weeksWorn).toBe(rules.wearOutWeeks);
+    expect(clothingLine()).toBeNull();
+  });
+
+  it('blocks Work in worn clothes: no pay, no Time spent', () => {
+    setPlayer({
+      jobId: ENTRY_JOB.id,
+      locationId: WORK,
+      clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks },
+    });
+    store().work();
+    expect(player()).toMatchObject({
+      money: STARTING_MONEY,
+      timeRemaining: MAX_TIME,
+    });
+    expect(store().lastEvent).toMatch(/worn out/i);
+  });
+
+  it('blocks hiring into a job that needs a tier while the clothes are worn', () => {
+    setPlayer({
+      locationId: EMPLOYMENT,
+      clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks },
+    });
+    store().hire(ENTRY_JOB.id);
+    expect(player().jobId).toBeNull();
+    expect(store().lastEvent).toMatch(/worn out/i);
+  });
+
+  it('sells each tier at QT Clothing for the scaled price, new', () => {
+    setState({ priceLevel: 1.2 });
+    for (const tier of rules.tiers) {
+      setPlayer({
+        locationId: CLOTHES_SHOP,
+        money: 1000,
+        clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks },
+      });
+      store().buyClothes(tier.id);
+      expect(player().money).toBe(1000 - scalePrice(tier.basePrice, 1.2));
+      expect(player().clothes).toEqual({ tierId: tier.id, weeksWorn: 0 });
+    }
+  });
+
+  it('lets the Player work again after buying new clothes', () => {
+    setPlayer({
+      jobId: ENTRY_JOB.id,
+      clothes: { tierId: 'casual', weeksWorn: rules.wearOutWeeks },
+      locationId: CLOTHES_SHOP,
+    });
+    store().buyClothes('casual');
+    setPlayer({ locationId: WORK });
+    store().work();
+    expect(player().money).toBe(
+      STARTING_MONEY -
+        scalePrice(rules.tiers[0].basePrice, 1) +
+        ENTRY_JOB.wage * ENTRY_JOB.shiftHours,
+    );
+  });
+
+  it('refuses without enough money, away from QT Clothing, and for an unknown tier', () => {
+    setPlayer({ locationId: CLOTHES_SHOP, money: 5 });
+    store().buyClothes('suit');
+    expect(store().lastEvent).toMatch(/You need \$309/);
+    setPlayer({ locationId: HOME, money: 1000 });
+    store().buyClothes('suit');
+    expect(store().lastEvent).toMatch(/not sold here/i);
+    setPlayer({ locationId: CLOTHES_SHOP });
+    store().buyClothes('tuxedo');
+    expect(player().clothes).toEqual({ tierId: 'casual', weeksWorn: 0 });
+    expect(player().money).toBe(1000);
+  });
+
+  it('does not replace good clothes of the same or a higher tier', () => {
+    setPlayer({
+      locationId: CLOTHES_SHOP,
+      money: 1000,
+      clothes: { tierId: 'dress', weeksWorn: 1 },
+    });
+    store().buyClothes('casual');
+    store().buyClothes('dress');
+    expect(player().money).toBe(1000);
+    expect(player().clothes).toEqual({ tierId: 'dress', weeksWorn: 1 });
+    expect(store().lastEvent).toMatch(/still good/);
+  });
+
+  it('lets the Player upgrade, and renew clothes that are about to wear out', () => {
+    setPlayer({ locationId: CLOTHES_SHOP, money: 1000 });
+    store().buyClothes('dress');
+    expect(player().clothes).toEqual({ tierId: 'dress', weeksWorn: 0 });
+    setPlayer({
+      clothes: { tierId: 'dress', weeksWorn: rules.wearOutWeeks - 1 },
+    });
+    store().buyClothes('dress');
+    expect(player().clothes).toEqual({ tierId: 'dress', weeksWorn: 0 });
+  });
+});
+
+describe('food and clothing in an invented pack, with no rules change', () => {
+  // A job that asks for the invented higher tier (AC-008, AC-014).
+  const pack: DataPack = {
+    ...inventedPack,
+    jobs: [
+      ...inventedPack.jobs,
+      {
+        id: 'guard',
+        title: 'Guard',
+        wage: 20,
+        locationId: 'mine',
+        educationRequired: 0,
+        shiftHours: 4,
+        workTimeHours: 1,
+        clothingRequired: 'cloak',
+      },
+    ],
+  };
+  const gameOfPack = () => {
+    const game = createGameStore({ pack, random: createRandom(7) });
+    game.getState().startGame();
+    return game;
+  };
+  const me = (game: ReturnType<typeof gameOfPack>) =>
+    game.getState().players[0];
+
+  it('blocks a job that needs a tier the Player lacks, until it is bought', () => {
+    const game = gameOfPack();
+    game.getState().walkTo('hall');
+    game.getState().hire('guard');
+    expect(me(game).jobId).toBeNull();
+    expect(game.getState().lastEvent).toMatch(/Cloak/);
+
+    game.getState().buyClothes('cloak'); // the hall sells clothes here: $9
+    expect(me(game).money).toBe(inventedPack.startingMoney - 9);
+    game.getState().hire('guard');
+    expect(me(game).jobId).toBe('guard');
+    game.getState().walkTo('mine');
+    game.getState().work();
+    expect(me(game).money).toBe(inventedPack.startingMoney - 9 + 80);
+  });
+
+  it('wears the clothes out after its own number of Weeks and blocks the job', () => {
+    const game = gameOfPack();
+    game.getState().walkTo('hall');
+    game.getState().buyClothes('cloak');
+    game.getState().hire('guard');
+    const line = () =>
+      game.getState().weekendReport!.effects.find((e) => e.id === 'clothing')!
+        .text;
+    game.getState().endTurn();
+    game.getState().endTurn();
+    expect(line()).toMatch(/Cloak.*wear out in 1 Week/);
+    game.getState().endTurn();
+    expect(line()).toMatch(/worn out/);
+    game.getState().walkTo('mine');
+    game.getState().work();
+    expect(game.getState().lastEvent).toMatch(/worn out/i);
+  });
+
+  it('feeds from its own food with its own penalty', () => {
+    const game = gameOfPack();
+    game.getState().walkTo('shop');
+    game.getState().buyFood('bread'); // 2 Weeks for $6, 0.5 hours
+    expect(me(game)).toMatchObject({ foodWeeks: 2, money: 9 });
+    game.getState().endTurn();
+    game.getState().endTurn();
+    expect(me(game).timeRemaining).toBe(MAX_TIME);
+    game.getState().endTurn();
+    expect(me(game).timeRemaining).toBe(MAX_TIME - 3);
+  });
+});
+
+describe('persistence of food and clothes (version 6)', () => {
+  it('migrates a version 5 save: a fed Player has one Week of food, and the clothes are new', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const old = { ...player(), hasEaten: true } as Partial<Player> & {
+      hasEaten: boolean;
+    };
+    delete old.foodWeeks;
+    delete old.clothes;
+    const migrated = (await migrate?.(
+      { currentWeek: 4, players: [old], turnIndex: 0 },
+      5,
+    )) as { players: (Player & { hasEaten?: boolean })[] };
+    expect(migrated.players[0]).toMatchObject({
+      foodWeeks: 1,
+      clothes: { tierId: defaultPack.clothing.startTierId, weeksWorn: 0 },
+    });
+    expect(migrated.players[0]).not.toHaveProperty('hasEaten');
+  });
+
+  it('migrates a hungry version 5 Player to no food', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const old = { ...player(), hasEaten: false } as Partial<Player>;
+    delete old.foodWeeks;
+    const migrated = (await migrate?.({ players: [old], turnIndex: 0 }, 5)) as {
+      players: Player[];
+    };
+    expect(migrated.players[0].foodWeeks).toBe(0);
+  });
+
+  it('carries the old fed flag through an older save to the Weeks of food', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const migrated = (await migrate?.(
+      { money: 5, hasEaten: true, currentLocationId: 'apt' },
+      1,
+    )) as { players: Player[] };
+    expect(migrated.players[0].foodWeeks).toBe(1);
+  });
+
+  it('saves the Weeks of food and the clothes', () => {
+    setPlayer({ foodWeeks: 3 });
+    const { state } = JSON.parse(
+      localStorage.getItem('jones-mvp-storage') ?? '{}',
+    );
+    expect(state.players[0]).toMatchObject({
+      foodWeeks: 3,
+      clothes: { tierId: 'casual', weeksWorn: 0 },
+    });
   });
 });

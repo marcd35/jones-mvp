@@ -31,13 +31,13 @@ export const LOCATIONS: Location[] = [
     id: 'z-mart',
     name: 'Z-Mart',
     type: 'store',
-    description: 'Buy food to survive.',
+    description: 'Household goods. Coming soon.',
   },
   {
     id: 'monolith-burger',
     name: 'Monolith Burger',
     type: 'work',
-    description: 'Flipping burgers for minimum wage.',
+    description: 'Flipping burgers for minimum wage. Fries to eat, too.',
   },
   {
     id: 'qt-clothing',
@@ -103,6 +103,7 @@ export const JOBS: Job[] = [
     educationRequired: 0,
     shiftHours: 8,
     workTimeHours: 1.2,
+    clothingRequired: 'casual',
   },
   {
     id: 'shift-manager',
@@ -112,5 +113,6 @@ export const JOBS: Job[] = [
     educationRequired: 1,
     shiftHours: 8,
     workTimeHours: 1.2,
+    clothingRequired: 'casual',
   },
 ];
