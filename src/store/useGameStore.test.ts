@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from './useGameStore';
+import type { GameState } from '@/types';
 import {
   FOOD_COST,
   MAX_TIME,
@@ -11,8 +12,7 @@ import {
 } from '@/lib/constants';
 
 const store = () => useGameStore.getState();
-const setState = (patch: Parameters<typeof useGameStore.setState>[0]) =>
-  useGameStore.setState(patch);
+const setState = (patch: Partial<GameState>) => useGameStore.setState(patch);
 
 beforeEach(() => {
   useGameStore.setState(useGameStore.getInitialState(), true);
