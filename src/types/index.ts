@@ -44,6 +44,46 @@ export interface Job {
   educationRequired: number; // 0 = none
   shiftHours: number; // Hours of pay one Work action earns (DEC-026)
   workTimeHours: number; // Time one Work action costs (DEC-022, DEC-026)
+  // The lowest clothing tier the job asks for (a ClothingTier id); worn clothes
+  // meet no tier (AC-008). Absent = no clothing requirement.
+  clothingRequired?: string;
+}
+
+// Food for sale: it covers `weeks` Weeks (AC-007). Prices are base prices, at
+// level 1.00; the shop charges them through the price level (AC-010).
+export interface FoodGood {
+  id: string;
+  name: string;
+  locationId: string; // The Location that sells it
+  weeks: number; // Weeks of food one purchase covers
+  basePrice: number;
+  timeHours: number; // Time buying it costs
+}
+
+// Hunger and the food on sale (AC-007). The numbers are placeholders for the
+// balance pass (T-15).
+export interface FoodRules {
+  // Time lost from the Week after a Week without food (DEC-022: about 35% of a
+  // Week). It is not cumulative and not cleared by eating later (UNK-006).
+  penaltyHours: number;
+  goods: FoodGood[];
+}
+
+// One clothing tier. A higher rank meets every lower rank's job requirement.
+export interface ClothingTier {
+  id: string;
+  name: string;
+  rank: number;
+  basePrice: number;
+}
+
+// Clothing and its wear (AC-008).
+export interface ClothingRules {
+  locationId: string; // The Location that sells the tiers
+  tiers: ClothingTier[];
+  startTierId: string; // What a new Player wears, brand new
+  wearOutWeeks: number; // Weeks of wear before clothes are worn out
+  warnWeeks: number; // The Player is warned this many Weeks before that
 }
 
 // What sits in one cell of the Board's ring.
@@ -104,6 +144,8 @@ export interface DataPack {
   goals: GoalDef[]; // One row for each GoalId
   rentOwedLimit: number; // The owed rent balance that loses the game (DEC-023)
   inflation: InflationRule;
+  food: FoodRules;
+  clothing: ClothingRules;
 }
 
 export interface Player {
@@ -112,8 +154,12 @@ export interface Player {
   money: number;
   timeRemaining: number; // Hours left this Turn (0-12, may be fractional)
   educationLevel: number;
-  hasEaten: boolean; // Resets every turn
-  isStarving: boolean; // Penalty state if they didn't eat
+  // Weeks of food in hand, this Week included: above 0 means this Week is
+  // covered. One is used up when the Week ends.
+  foodWeeks: number;
+  isStarving: boolean; // This Week began with the hunger penalty
+  // What the Player wears and the Weeks worn; null = no clothes at all.
+  clothes: { tierId: string; weeksWorn: number } | null;
   locationId: string;
   jobId: string | null; // Hired at an employment Location; null = no job
   goals: GoalPoints; // Goal points set at setup; 0 = no Goal in that category

@@ -233,3 +233,105 @@ describe('validatePack inflation rule', () => {
     ).toEqual([]);
   });
 });
+
+describe('validatePack: food and clothing', () => {
+  const { food, clothing } = defaultPack;
+  const withFood = (patch: Partial<typeof food>) => ({
+    ...defaultPack,
+    food: { ...food, ...patch },
+  });
+  const withGood = (patch: Record<string, unknown>) =>
+    withFood({ goods: [{ ...food.goods[0], ...patch }] });
+  const withClothing = (patch: Partial<typeof clothing>) => ({
+    ...defaultPack,
+    clothing: { ...clothing, ...patch },
+  });
+
+  it('rejects a job that asks for an unknown clothing tier', () => {
+    const pack = {
+      ...defaultPack,
+      jobs: [{ ...defaultPack.jobs[0], clothingRequired: 'tuxedo' }],
+    };
+    expect(validatePack(pack)).toContain(
+      'Job "cook" needs unknown clothing tier "tuxedo".',
+    );
+  });
+
+  it('accepts a job with no clothing requirement', () => {
+    const { clothingRequired, ...job } = defaultPack.jobs[0];
+    void clothingRequired;
+    expect(validatePack({ ...defaultPack, jobs: [job] })).toEqual([]);
+  });
+
+  it.each([
+    [
+      { locationId: 'moon' },
+      'Food "monolith-fries" is at unknown Location "moon".',
+    ],
+    [
+      { locationId: 'bank' },
+      'Food "monolith-fries" is at closed Location "bank".',
+    ],
+    [
+      { weeks: 0 },
+      'Food "monolith-fries" needs a whole number of Weeks, at least 1.',
+    ],
+    [
+      { weeks: 1.5 },
+      'Food "monolith-fries" needs a whole number of Weeks, at least 1.',
+    ],
+    [{ basePrice: -1 }, 'Food "monolith-fries" needs a price of at least 0.'],
+    [
+      { timeHours: 13 },
+      'Food "monolith-fries" needs a Time cost between 0 and 12 hours.',
+    ],
+  ])('rejects food with %j', (patch, message) => {
+    expect(validatePack(withGood(patch))).toContain(message);
+  });
+
+  it('rejects food defined twice and a penalty that takes the whole Week', () => {
+    expect(
+      validatePack(withFood({ goods: [food.goods[0], food.goods[0]] })),
+    ).toContain('Food "monolith-fries" is defined twice.');
+    expect(validatePack(withFood({ penaltyHours: 12 }))).toContain(
+      'The hunger penalty must be at least 0 and less than a Week of 12 hours.',
+    );
+  });
+
+  it.each([
+    [
+      { locationId: 'moon' },
+      'The clothing shop is at unknown Location "moon".',
+    ],
+    [{ locationId: 'bank' }, 'The clothing shop is at closed Location "bank".'],
+    [{ tiers: [] }, 'Clothing needs at least one tier.'],
+    [
+      { startTierId: 'rags' },
+      'The starting clothes "rags" are not a clothing tier.',
+    ],
+    [
+      { wearOutWeeks: 0 },
+      'Clothes need to last a whole number of Weeks, at least 1.',
+    ],
+    [
+      { warnWeeks: 6 },
+      'The clothing warning must be a whole number of Weeks, at least 0 and less than the Weeks clothes last.',
+    ],
+  ])('rejects clothing with %j', (patch, message) => {
+    expect(validatePack(withClothing(patch))).toContain(message);
+  });
+
+  it('rejects repeated tier ids and ranks, and a tier priced below 0', () => {
+    const [a, b] = clothing.tiers;
+    const problems = validatePack(
+      withClothing({
+        tiers: [a, { ...b, id: a.id, rank: a.rank, basePrice: -1 }],
+      }),
+    );
+    expect(problems).toContain('Clothing tier "casual" is defined twice.');
+    expect(problems).toContain('Clothing tier "casual" repeats the rank 1.');
+    expect(problems).toContain(
+      'Clothing tier "casual" needs a price of at least 0.',
+    );
+  });
+});

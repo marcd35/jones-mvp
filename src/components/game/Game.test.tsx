@@ -143,24 +143,12 @@ describe('game page', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('disables the meal button once the weekly meal is eaten', async () => {
-    render(<Home />);
-    await userEvent.click(tileButton('Z-Mart'));
-    await userEvent.click(tileButton('Z-Mart'));
-    await userEvent.click(screen.getByRole('button', { name: /Buy Meal/ }));
-
-    await userEvent.click(tileButton('Z-Mart'));
-    expect(
-      screen.getByRole('button', { name: 'Already ate this week' }),
-    ).toBeDisabled();
-  });
-
   it('shows game over when the rent cannot be paid', async () => {
     render(<Home />);
     act(() =>
       useGameStore.setState((st) => ({
         currentWeek: 4,
-        players: [{ ...st.players[0], money: 0, hasEaten: true }],
+        players: [{ ...st.players[0], money: 0, foodWeeks: 1 }],
       })),
     );
     await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
@@ -427,10 +415,208 @@ describe('inflation on screen (AC-004, AC-010)', () => {
     const { container } = render(<Home />);
     expect(container).not.toHaveTextContent('1.2');
     expect(container).not.toHaveTextContent(/price level|inflation/i);
-    await userEvent.click(tileButton('Z-Mart'));
-    await userEvent.click(tileButton('Z-Mart'));
+    await userEvent.click(tileButton('Monolith Burger'));
+    await userEvent.click(tileButton('Monolith Burger'));
+    // Fries: 68 x 1.20 = 81.60, which rounds to $82.
     expect(
-      screen.getByRole('button', { name: /Buy Meal \(\$18 \/ 1hr\)/ }),
+      screen.getByRole('button', { name: /Buy Fries.*\(\$82 \/ 1hr\)/ }),
     ).toBeEnabled();
+  });
+});
+
+describe('food on screen (AC-007)', () => {
+  const openHere = async (name: string) => {
+    await userEvent.click(tileButton(name));
+    await userEvent.click(tileButton(name));
+    return screen.getByRole('dialog', { name });
+  };
+  const status = () => screen.getByText('Status').parentElement!;
+
+  it('says the Player needs food until the Week is covered, then that they are fed', async () => {
+    render(<Home />);
+    expect(status()).toHaveTextContent('Needs food');
+    expect(status()).not.toHaveTextContent('Hungry');
+
+    const dialog = await openHere('Monolith Burger');
+    expect(dialog).toHaveTextContent('None: this Week needs food');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: /Buy Fries/ }),
+    );
+    expect(player().foodWeeks).toBe(1);
+    expect(status()).toHaveTextContent('Fed');
+    expect(status()).toHaveTextContent('1 Week of food');
+    expect(dialog).toHaveTextContent('Food in hand1 Week');
+  });
+
+  it("sells Black's Market food by the Week, 1, 2 and 4, at the level's prices", async () => {
+    act(() => useGameStore.setState({ priceLevel: 1.22 }));
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [
+          { ...st.players[0], locationId: 'blacks-market', money: 1000 },
+        ],
+      })),
+    );
+    await userEvent.click(tileButton("Black's Market"));
+    const dialog = screen.getByRole('dialog', { name: "Black's Market" });
+    const buy = (name: RegExp) => within(dialog).getByRole('button', { name });
+    expect(buy(/Food for 1 Week \(\$70/)).toBeEnabled();
+    expect(buy(/Food for 2 Weeks \(\$128/)).toBeEnabled();
+    expect(buy(/Food for 4 Weeks \(\$243/)).toBeEnabled();
+
+    await userEvent.click(buy(/Food for 4 Weeks/));
+    expect(player().foodWeeks).toBe(4);
+    expect(player().money).toBe(1000 - 243);
+    expect(dialog).toHaveTextContent('Food in hand4 Weeks');
+    expect(status()).toHaveTextContent('4 Weeks of food');
+  });
+
+  it('disables a purchase the Player cannot pay for', async () => {
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [{ ...st.players[0], money: 10 }],
+      })),
+    );
+    render(<Home />);
+    const dialog = await openHere('Monolith Burger');
+    expect(
+      within(dialog).getByRole('button', { name: /Buy Fries/ }),
+    ).toBeDisabled();
+  });
+
+  it('fills the food line of the weekend report both ways', async () => {
+    render(<Home />);
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+    let report = screen.getByRole('dialog', { name: /weekend report/i });
+    const line = (label: string) =>
+      within(report)
+        .getAllByRole('listitem')
+        .find((li) => li.firstElementChild?.textContent === label)!;
+    expect(line('Food')).toHaveTextContent(
+      'No food this Week. You lose 4 hours next Week.',
+    );
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
+    expect(screen.getByText('8 hours left')).toBeInTheDocument();
+
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [{ ...st.players[0], foodWeeks: 2 }],
+      })),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+    report = screen.getByRole('dialog', { name: /weekend report/i });
+    expect(line('Food')).toHaveTextContent(
+      'Fed. Food in hand for 1 more Week.',
+    );
+  });
+});
+
+describe('clothing on screen (AC-008)', () => {
+  const openHere = async (name: string) => {
+    await userEvent.click(tileButton(name));
+    await userEvent.click(tileButton(name));
+    return screen.getByRole('dialog', { name });
+  };
+  const wear = (weeksWorn: number, tierId = 'casual') =>
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [{ ...st.players[0], clothes: { tierId, weeksWorn } }],
+      })),
+    );
+
+  it('sells the tiers at QT Clothing at the level prices, and a purchase renews the clothes', async () => {
+    act(() =>
+      useGameStore.setState((st) => ({
+        priceLevel: 1.2,
+        players: [{ ...st.players[0], money: 1000 }],
+      })),
+    );
+    render(<Home />);
+    wear(6);
+    const hud = screen.getByText('Clothes').parentElement!;
+    expect(hud).toHaveTextContent('Worn out');
+
+    const dialog = await openHere('QT Clothing');
+    expect(dialog).toHaveTextContent('Casual Clothes (worn out)');
+    // 76, 131 and 309 at 1.20.
+    for (const label of [
+      /Buy Casual Clothes \(\$91\)/,
+      /Buy Dress Clothes \(\$157\)/,
+      /Buy Business Suit \(\$371\)/,
+    ]) {
+      expect(within(dialog).getByRole('button', { name: label })).toBeEnabled();
+    }
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: /Buy Dress Clothes/ }),
+    );
+    expect(player().clothes).toEqual({ tierId: 'dress', weeksWorn: 0 });
+    expect(player().money).toBe(1000 - 157);
+    expect(hud).toHaveTextContent('Dress Clothes');
+  });
+
+  it('warns on the HUD and at QT Clothing before the clothes wear out', async () => {
+    render(<Home />);
+    wear(5);
+    expect(screen.getByText('Clothes').parentElement).toHaveTextContent(
+      'Wear out in 1 Week',
+    );
+    const dialog = await openHere('QT Clothing');
+    expect(dialog).toHaveTextContent('Casual Clothes (wears out in 1 Week)');
+  });
+
+  it('tells a Player in worn clothes why they cannot work or take the job', async () => {
+    render(<Home />);
+    wear(6);
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [
+          { ...st.players[0], jobId: 'cook', locationId: 'monolith-burger' },
+        ],
+      })),
+    );
+    await userEvent.click(tileButton('Monolith Burger')); // already there
+    const burger = screen.getByRole('dialog', { name: 'Monolith Burger' });
+    expect(burger).toHaveTextContent('Your clothes are worn out.');
+    expect(within(burger).queryByRole('button', { name: /^Work/ })).toBeNull();
+    await userEvent.click(
+      within(burger).getByRole('button', { name: 'Leave' }),
+    );
+
+    act(() =>
+      useGameStore.setState((st) => ({
+        players: [{ ...st.players[0], jobId: null }],
+      })),
+    );
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+    const office = screen.getByRole('dialog', { name: 'Employment Office' });
+    expect(office).toHaveTextContent('Dress: Casual Clothes or better');
+    expect(office).toHaveTextContent('Your clothes are worn out.');
+    expect(
+      within(office).queryByRole('button', { name: 'Take the Cook job' }),
+    ).toBeNull();
+  });
+
+  it('fills the clothing wear line of the weekend report', async () => {
+    render(<Home />);
+    wear(4);
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+    let report = screen.getByRole('dialog', { name: /weekend report/i });
+    const line = () =>
+      within(report)
+        .getAllByRole('listitem')
+        .find((li) => li.firstElementChild?.textContent === 'Clothing wear')!;
+    expect(line()).toHaveTextContent(
+      'Your Casual Clothes will wear out in 1 Week.',
+    );
+    await userEvent.click(
+      within(report).getByRole('button', { name: 'Start Week 2' }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
+    report = screen.getByRole('dialog', { name: /weekend report/i });
+    expect(line()).toHaveTextContent('Your Casual Clothes are worn out.');
   });
 });

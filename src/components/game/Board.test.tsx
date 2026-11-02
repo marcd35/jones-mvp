@@ -119,7 +119,7 @@ describe('Board time and walking', () => {
     await userEvent.click(within(cellFor('Z-Mart')).getByRole('button'));
     act(() =>
       useGameStore.setState((s) => ({
-        players: [{ ...s.players[0], timeRemaining: 0.1, hasEaten: true }],
+        players: [{ ...s.players[0], timeRemaining: 0.1, foodWeeks: 1 }],
       })),
     );
     await userEvent.click(
