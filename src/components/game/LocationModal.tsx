@@ -22,12 +22,19 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     foodWeeks,
     clothes,
     jobId,
+    owedRent,
+    rentDueWeek,
+    rentExtensionAskedWeek,
   } = player;
   const hire = useGameStore((s) => s.hire);
   const work = useGameStore((s) => s.work);
   const buyFood = useGameStore((s) => s.buyFood);
   const buyClothes = useGameStore((s) => s.buyClothes);
   const attendClass = useGameStore((s) => s.attendClass);
+  const payRent = useGameStore((s) => s.payRent);
+  const payRentBalance = useGameStore((s) => s.payRentBalance);
+  const askForMoreTime = useGameStore((s) => s.askForMoreTime);
+  const currentWeek = useGameStore((s) => s.currentWeek);
   const priceLevel = useGameStore((s) => s.priceLevel);
   const newspaper = useGameStore((s) => s.newspaper);
   // Shop prices at this Week's hidden level (AC-010).
@@ -52,6 +59,9 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     (g) => g.locationId === currentLocationId,
   );
   const sellsClothes = currentLocationId === clothing.locationId;
+  const rentDue = currentWeek >= rentDueWeek;
+  const extensionAskedThisWeek = rentExtensionAskedWeek === currentWeek;
+  const rentAmount = defaultPack.rent.homeAmounts[defaultPack.homeLocationId];
 
   if (!currentLocation) return null;
 
@@ -261,6 +271,59 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
               </p>
             </section>
           </div>
+        )}
+
+        {/* === RENT OFFICE === */}
+        {currentLocationId === defaultPack.rent.locationId && (
+          <section aria-label="Rent Office" className="space-y-3">
+            <p className="flex justify-between text-sm text-slate-300">
+              <span>Rent owed</span>
+              <span className="font-mono font-bold text-white">
+                ${owedRent}
+              </span>
+            </p>
+            {rentDue ? (
+              <>
+                <p className="text-sm text-slate-300">
+                  Rent of ${rentAmount} is due this Week.
+                </p>
+                <Button
+                  onClick={() => payRent()}
+                  disabled={money < rentAmount}
+                  className="min-h-11 w-full"
+                >
+                  Pay rent (${rentAmount})
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => askForMoreTime()}
+                  className="min-h-11 w-full"
+                >
+                  Ask For More Time
+                </Button>
+                {owedRent > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => payRentBalance()}
+                    disabled={money < owedRent}
+                    className="min-h-11 w-full"
+                  >
+                    Pay rent balance (${owedRent})
+                  </Button>
+                )}
+              </>
+            ) : extensionAskedThisWeek ? (
+              <p className="text-sm text-slate-300">
+                You have until Week {rentDueWeek} to pay rent. You already asked
+                for more time this Week.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-300">
+                The Rent Office is closed because rent is not due this Week.
+                Next due in Week {rentDueWeek}.
+              </p>
+            )}
+          </section>
         )}
 
         <Button variant="ghost" onClick={onClose} className="mt-4 w-full">

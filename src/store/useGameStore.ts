@@ -11,13 +11,7 @@ import {
   WeekEndReason,
   WeekendEffectId,
 } from '@/types';
-import {
-  CLASS_HOURS,
-  MAX_TIME,
-  RENT_COST,
-  RENT_INTERVAL,
-  TUITION_COST,
-} from '@/lib/constants';
+import { CLASS_HOURS, MAX_TIME, TUITION_COST } from '@/lib/constants';
 import { defaultPack } from '@/data';
 import { LEGACY_LOCATION_IDS } from '@/data/locations';
 import { loadPack } from '@/data/loader';
@@ -49,6 +43,9 @@ interface GameActions {
   buyFood: (goodId: string) => void;
   buyClothes: (tierId: string) => void;
   attendClass: () => void;
+  payRent: () => void;
+  payRentBalance: () => void;
+  askForMoreTime: () => void;
   endTurn: () => void;
   resetGame: () => void;
 }
@@ -62,7 +59,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -92,6 +89,9 @@ const newPlayer = (pack: DataPack): Player => ({
   jobId: null,
   goals: defaultGoalPoints(pack),
   owedRent: 0,
+  rentDueWeek: pack.rent.intervalWeeks,
+  rentExtensionAskedWeek: null,
+  rentPaidWeek: null,
 });
 
 const initialState = (pack: DataPack, priceSeed: number): GameState => ({
@@ -121,6 +121,8 @@ const gameStoreCreator =
 
     // A shop price at this Week's level (AC-010).
     const priceOf = (base: number) => scalePrice(base, get().priceLevel);
+    const rentOfficeName = () =>
+      locationOf(pack.rent.locationId)?.name ?? 'the rent office';
 
     // Why the Player's clothes bar the job, or null when they meet its
     // requirement (AC-008).
@@ -157,7 +159,7 @@ const gameStoreCreator =
       reason: WeekEndReason,
     ) => {
       const player = activePlayer(state);
-      let currentMoney = player.money;
+      const currentMoney = player.money;
       let status = state.gameStatus;
       let eventLog = intro;
       const said: Partial<Record<WeekendEffectId, string>> = {};
@@ -182,17 +184,19 @@ const gameStoreCreator =
         eventLog += `${wear.text} `;
       }
 
-      // 3. Rent due (every 4th week: 4, 8, 12...)
-      if (state.currentWeek % RENT_INTERVAL === 0) {
-        currentMoney -= RENT_COST;
-        said.rent = `Rent paid (-$${RENT_COST}).`;
-        eventLog += `Rent Paid (-${RENT_COST}). `;
-
-        if (currentMoney < 0) {
-          status = 'lost';
-          said.rent += ' You could not afford it: evicted!';
-          eventLog = 'Evicted! Game Over.';
-        }
+      // 3. Unpaid rent is added when its due Week ends. Paying at the office
+      // during the Week advances rentDueWeek before this point.
+      let owedRent = player.owedRent;
+      let rentDueWeek = player.rentDueWeek;
+      if (state.currentWeek >= player.rentDueWeek) {
+        const amount = pack.rent.homeAmounts[pack.homeLocationId];
+        owedRent += amount;
+        rentDueWeek += pack.rent.intervalWeeks;
+        said.rent = `Rent of $${amount} is due. It was not paid; $${amount} was added to rent owed.`;
+        eventLog += `${said.rent} `;
+      } else if (player.rentPaidWeek === state.currentWeek) {
+        const amount = pack.rent.homeAmounts[pack.homeLocationId];
+        said.rent = `Rent paid ($${amount}).`;
       }
 
       // 4. Inflation step: the level for the coming Week.
@@ -225,6 +229,13 @@ const gameStoreCreator =
         isStarving: isStarvingNow,
         clothes: wear.clothes,
         locationId: pack.homeLocationId,
+        owedRent,
+        rentDueWeek,
+        rentExtensionAskedWeek:
+          state.currentWeek >= player.rentDueWeek
+            ? null
+            : player.rentExtensionAskedWeek,
+        rentPaidWeek: null,
       });
       if (status === 'playing') status = endStatus({ ...state, players });
 
@@ -412,19 +423,25 @@ const gameStoreCreator =
         set((s) => {
           const player = activePlayer(s);
           const earned = job.wage * job.shiftHours;
-          const newMoney = player.money + earned;
+          const garnishment = Math.min(
+            player.owedRent,
+            pack.rent.garnishment,
+            earned,
+          );
+          const newMoney = player.money + earned - garnishment;
 
           return settle(
             s,
             {
               players: patchActive(s, {
                 money: newMoney,
+                owedRent: player.owedRent - garnishment,
                 timeRemaining: roundHours(
                   player.timeRemaining - job.workTimeHours,
                 ),
               }),
             },
-            `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}.`,
+            `Worked a ${job.shiftHours}-hour shift as ${job.title}. Earned $${earned}${garnishment ? `; $${garnishment} was garnished for rent.` : '.'}`,
           );
         });
       },
@@ -533,6 +550,90 @@ const gameStoreCreator =
             'Education Level Increased! You can now apply for better jobs.',
           );
         });
+      },
+
+      payRent: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        if (player.locationId !== pack.rent.locationId) {
+          notify(`Go to ${rentOfficeName()} to pay rent.`);
+          return;
+        }
+        if (state.currentWeek < player.rentDueWeek) {
+          notify(
+            `${rentOfficeName()} is closed because rent is not due this Week.`,
+          );
+          return;
+        }
+        const amount = pack.rent.homeAmounts[pack.homeLocationId];
+        if (player.money < amount) {
+          notify(`You need $${amount} to pay rent.`);
+          return;
+        }
+        set((s) => ({
+          players: patchActive(s, {
+            money: player.money - amount,
+            rentDueWeek: player.rentDueWeek + pack.rent.intervalWeeks,
+            rentExtensionAskedWeek: null,
+            rentPaidWeek: state.currentWeek,
+          }),
+          ...withEvent(s, `Paid rent of $${amount}.`),
+        }));
+      },
+
+      payRentBalance: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        if (player.locationId !== pack.rent.locationId) {
+          notify(`Go to ${rentOfficeName()} to pay the rent balance.`);
+          return;
+        }
+        if (state.currentWeek < player.rentDueWeek) {
+          notify(
+            `${rentOfficeName()} is closed because rent is not due this Week.`,
+          );
+          return;
+        }
+        if (player.owedRent <= 0) {
+          notify('There is no rent balance to pay.');
+          return;
+        }
+        if (player.money < player.owedRent) {
+          notify(`You need $${player.owedRent} to clear the rent balance.`);
+          return;
+        }
+        set((s) => ({
+          players: patchActive(s, {
+            money: player.money - player.owedRent,
+            owedRent: 0,
+          }),
+          ...withEvent(s, `Paid the rent balance of $${player.owedRent}.`),
+        }));
+      },
+
+      askForMoreTime: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        if (player.locationId !== pack.rent.locationId) {
+          notify(`Go to ${rentOfficeName()} to ask for more time.`);
+          return;
+        }
+        if (state.currentWeek < player.rentDueWeek) {
+          notify(
+            `${rentOfficeName()} is closed because rent is not due this Week.`,
+          );
+          return;
+        }
+        set((s) => ({
+          players: patchActive(s, {
+            rentDueWeek: player.rentDueWeek + 1,
+            rentExtensionAskedWeek: state.currentWeek,
+          }),
+          ...withEvent(s, 'You have one more Week to pay rent.'),
+        }));
       },
 
       endTurn: () => {
@@ -657,6 +758,20 @@ export const useGameStore = create<GameStore>()(
           ...p,
           foodWeeks: p.foodWeeks ?? (hasEaten ? 1 : 0),
           clothes: p.clothes ?? newPlayer(gamePack).clothes,
+        }));
+      }
+      // v7 tracks the next due Week and rent paid in the current Week.
+      if (version < 7) {
+        const currentWeek =
+          typeof state.currentWeek === 'number' ? state.currentWeek : 1;
+        const interval = gamePack.rent.intervalWeeks;
+        const nextDueWeek =
+          Math.ceil(currentWeek / interval) * interval || interval;
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          rentDueWeek: p.rentDueWeek ?? nextDueWeek,
+          rentExtensionAskedWeek: p.rentExtensionAskedWeek ?? null,
+          rentPaidWeek: p.rentPaidWeek ?? null,
         }));
       }
       return state as never;

@@ -143,7 +143,7 @@ describe('game page', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('shows game over when the rent cannot be paid', async () => {
+  it('adds unpaid rent to the balance without ending the game before the limit', async () => {
     render(<Home />);
     act(() =>
       useGameStore.setState((st) => ({
@@ -152,7 +152,31 @@ describe('game page', () => {
       })),
     );
     await userEvent.click(screen.getByRole('button', { name: 'END WEEK' }));
-    expect(screen.getByText('GAME OVER')).toBeInTheDocument();
+    expect(player()).toMatchObject({ owedRent: 325, money: 0 });
+    expect(
+      screen.getByRole('dialog', { name: /week 4: weekend report/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('GAME OVER')).toBeNull();
+  });
+
+  it('shows Rent Office actions and lets the Player ask for more time', async () => {
+    render(<Home />);
+    act(() =>
+      useGameStore.setState((st) => ({
+        currentWeek: 4,
+        players: [
+          { ...st.players[0], locationId: defaultPack.rent.locationId },
+        ],
+      })),
+    );
+    await userEvent.click(tileButton('Rent Office'));
+    const office = screen.getByRole('dialog', { name: 'Rent Office' });
+    expect(office).toHaveTextContent('Rent of $325 is due this Week.');
+    await userEvent.click(
+      within(office).getByRole('button', { name: 'Ask For More Time' }),
+    );
+    expect(player().rentDueWeek).toBe(5);
+    expect(office).toHaveTextContent('You have until Week 5 to pay rent.');
   });
 
   it('shows the lose screen when the owed rent reaches the limit, with no actions behind it', async () => {

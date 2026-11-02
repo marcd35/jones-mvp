@@ -12,7 +12,7 @@ export const LOCATIONS: Location[] = [
     id: 'rent-office',
     name: 'Rent Office',
     type: 'other',
-    description: 'Rent is due every 4 weeks.',
+    description: 'Pay rent, ask for more time, or clear an unpaid balance.',
   },
   {
     id: 'low-cost-housing',

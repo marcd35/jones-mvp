@@ -16,7 +16,13 @@ export const defaultPack: DataPack = {
   startingMoney: 200, // Observed in the original (AC-005)
   goalPointsBudget: GOAL_POINTS_BUDGET,
   goals: GOALS,
-  rentOwedLimit: 300, // DEC-023: 3 months of rent; T-09 may tune
+  rentOwedLimit: 975, // Three months at the fixed $325 lease rate
+  rent: {
+    locationId: 'rent-office',
+    homeAmounts: { 'low-cost-housing': 325 },
+    intervalWeeks: 4,
+    garnishment: 18,
+  },
   inflation: INFLATION,
   food: FOOD,
   clothing: CLOTHING,
