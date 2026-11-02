@@ -17,3 +17,17 @@ Every change is tied to one GitHub issue, and the issue number appears in all th
 - When you hand an issue to a subagent, give it the exact branch name and directory.
 - `.github/branch-policy.json` holds the branch pattern. `node C:/Users/marcc/.claude/scripts/check-worktree.mjs` checks the branch, directory, issue and PR together and prints a PROBLEM for any mismatch. Run it before building, committing or opening a PR.
 - Commit messages and PR descriptions carry no attribution lines.
+
+## Agent skills
+
+### Issue tracker
+
+Issues for this repo live in GitHub Issues; use `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: read the root `CONTEXT.md` and relevant ADRs under `docs/adr/`. See `docs/agents/domain.md`.
