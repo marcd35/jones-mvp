@@ -80,7 +80,7 @@ export const LOCATIONS: Location[] = [
     id: 'blacks-market',
     name: "Black's Market",
     type: 'other',
-    description: 'Food in bulk.',
+    description: 'Food in bulk and the weekly newspaper.',
   },
 ];
 

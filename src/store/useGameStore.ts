@@ -31,6 +31,7 @@ import {
   scalePrice,
 } from '@/lib/inflation';
 import { createRandom, Random } from '@/lib/random';
+import { newspaperIssueSchedule } from '@/lib/newspaper';
 import { WEEKEND_EFFECTS } from '@/lib/weekend';
 
 interface GameActions {
@@ -42,6 +43,7 @@ interface GameActions {
   dismissWeekendReport: () => void;
   buyFood: (goodId: string) => void;
   buyClothes: (tierId: string) => void;
+  buyNewspaper: () => void;
   attendClass: () => void;
   payRent: () => void;
   payRentBalance: () => void;
@@ -59,7 +61,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 7;
+const STORAGE_VERSION = 8;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -92,6 +94,7 @@ const newPlayer = (pack: DataPack): Player => ({
   rentDueWeek: pack.rent.intervalWeeks,
   rentExtensionAskedWeek: null,
   rentPaidWeek: null,
+  newspaperReadWeek: null,
 });
 
 const initialState = (pack: DataPack, priceSeed: number): GameState => ({
@@ -525,6 +528,64 @@ const gameStoreCreator =
         );
       },
 
+      buyNewspaper: () => {
+        const state = get();
+        if (state.gameStatus !== 'playing') return;
+        const player = activePlayer(state);
+        const newspaper = pack.newspaper;
+        const seller = locationOf(newspaper.locationId);
+
+        if (!seller || seller.closed) {
+          notify(
+            'The newspaper is not available because its Location is closed.',
+          );
+          return;
+        }
+        if (player.locationId !== newspaper.locationId) {
+          notify(`The newspaper is sold at ${seller.name}.`);
+          return;
+        }
+        const issueSchedule = newspaperIssueSchedule(
+          state.currentWeek,
+          newspaper.issueEveryWeeks,
+        );
+        if (!issueSchedule.available) {
+          notify(
+            `The next newspaper issue arrives in Week ${issueSchedule.nextIssueWeek}.`,
+          );
+          return;
+        }
+        if (player.newspaperReadWeek === state.currentWeek) {
+          notify('You already read this Week’s newspaper.');
+          return;
+        }
+        if (player.money < newspaper.price) {
+          notify(`You need $${newspaper.price} for the newspaper.`);
+          return;
+        }
+        if (player.timeRemaining < newspaper.timeHours) {
+          notify('Not enough Time to read the newspaper.');
+          return;
+        }
+
+        set((s) => {
+          const active = activePlayer(s);
+          return settle(
+            s,
+            {
+              players: patchActive(s, {
+                money: active.money - newspaper.price,
+                timeRemaining: roundHours(
+                  active.timeRemaining - newspaper.timeHours,
+                ),
+                newspaperReadWeek: s.currentWeek,
+              }),
+            },
+            `Bought this Week’s newspaper for $${newspaper.price}.`,
+          );
+        });
+      },
+
       attendClass: () => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
@@ -772,6 +833,13 @@ export const useGameStore = create<GameStore>()(
           rentDueWeek: p.rentDueWeek ?? nextDueWeek,
           rentExtensionAskedWeek: p.rentExtensionAskedWeek ?? null,
           rentPaidWeek: p.rentPaidWeek ?? null,
+        }));
+      }
+      // v8 records the Week in which each Player last bought a newspaper.
+      if (version < 8) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          newspaperReadWeek: p.newspaperReadWeek ?? null,
         }));
       }
       return state as never;

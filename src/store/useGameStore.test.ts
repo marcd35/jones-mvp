@@ -280,6 +280,12 @@ const inventedPack: DataPack = {
     nextLevel: ({ week }) => 1 + (week - 1) * 0.25,
     notableMoves: [{ minMove: 0.2, up: 'Gold rush!', down: 'Gold slump!' }],
   },
+  newspaper: {
+    locationId: 'shop',
+    price: 1,
+    timeHours: 0.3,
+    issueEveryWeeks: 1,
+  },
 };
 const inventedStore = () => {
   const game = createGameStore({
@@ -1096,7 +1102,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(7);
+    expect(persisted().version).toBe(8);
   });
 
   it('migrates a version 0 save: drops the removed job field and moves the Player stats into the list', async () => {
@@ -1423,6 +1429,104 @@ describe('inflation (AC-010)', () => {
     expect(migrated.priceLevel).toBe(defaultPack.inflation.startLevel);
     expect(Number.isInteger(migrated.priceSeed)).toBe(true);
     expect(migrated.newspaper).toBeNull();
+  });
+
+  it('migrates a version 7 save with no newspaper read history', async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const oldPlayer = { ...player() } as Partial<Player>;
+    delete oldPlayer.newspaperReadWeek;
+    const migrated = (await migrate?.(
+      { currentWeek: 4, players: [oldPlayer], turnIndex: 0 },
+      7,
+    )) as { players: Player[] };
+    expect(migrated.players[0].newspaperReadWeek).toBeNull();
+  });
+});
+
+describe('newspaper (issue #20)', () => {
+  const gameOf = (pack: DataPack) => {
+    const game = createGameStore({ pack, random: createRandom(12) });
+    game.getState().startGame();
+    return game;
+  };
+
+  it('costs the flat data price and Time once per issue', () => {
+    const game = gameOf(defaultPack);
+    const before = game.getState().players[0];
+    game.setState({ currentWeek: 2, priceLevel: 1.5 });
+    game.setState((s) => ({
+      players: [
+        { ...s.players[0], locationId: MARKET, money: 10, timeRemaining: 4 },
+      ],
+    }));
+
+    game.getState().buyNewspaper();
+    expect(game.getState().players[0]).toMatchObject({
+      money: 9,
+      timeRemaining: 4 - defaultPack.newspaper.timeHours,
+      newspaperReadWeek: 2,
+    });
+    expect(game.getState().lastEvent).toMatch(
+      /Bought this Week’s newspaper for \$1/,
+    );
+
+    const afterPurchase = game.getState().players[0];
+    game.getState().buyNewspaper();
+    expect(game.getState().players[0]).toEqual(afterPurchase);
+    expect(game.getState().lastEvent).toMatch(/already read/i);
+    expect(before.money).toBe(STARTING_MONEY);
+  });
+
+  it('refuses a purchase away from the seller, without money, or without Time', () => {
+    const game = gameOf(defaultPack);
+    game.getState().buyNewspaper();
+    expect(game.getState().lastEvent).toMatch(/sold at Black's Market/i);
+
+    game.setState((s) => ({
+      players: [{ ...s.players[0], locationId: MARKET, money: 0 }],
+    }));
+    game.getState().buyNewspaper();
+    expect(game.getState().lastEvent).toMatch(/need \$1/i);
+    expect(game.getState().players[0].money).toBe(0);
+
+    game.setState((s) => ({
+      players: [{ ...s.players[0], money: 1, timeRemaining: 0.2 }],
+    }));
+    game.getState().buyNewspaper();
+    expect(game.getState().lastEvent).toMatch(/not enough Time/i);
+    expect(game.getState().players[0].money).toBe(1);
+  });
+
+  it('only offers a new issue on the configured Week cadence', () => {
+    const pack: DataPack = {
+      ...inventedPack,
+      newspaper: { ...inventedPack.newspaper, issueEveryWeeks: 2 },
+    };
+    const game = gameOf(pack);
+    game.setState({ currentWeek: 2 });
+    game.setState((s) => ({
+      players: [{ ...s.players[0], locationId: 'shop', money: 10 }],
+    }));
+    game.getState().buyNewspaper();
+    expect(game.getState().lastEvent).toMatch(
+      /next newspaper issue arrives in Week 3/i,
+    );
+    expect(game.getState().players[0].money).toBe(10);
+  });
+
+  it('refuses to sell from a closed Location', () => {
+    const pack: DataPack = {
+      ...inventedPack,
+      locations: inventedPack.locations.map((location) => ({ ...location })),
+    };
+    const game = gameOf(pack);
+    pack.locations.find((location) => location.id === 'shop')!.closed = true;
+    game.setState((s) => ({
+      players: [{ ...s.players[0], locationId: 'shop', money: 10 }],
+    }));
+    game.getState().buyNewspaper();
+    expect(game.getState().lastEvent).toMatch(/Location is closed/i);
+    expect(game.getState().players[0].money).toBe(10);
   });
 });
 

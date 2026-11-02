@@ -2,6 +2,7 @@ import type { DataPack } from '@/types';
 import { CLOTHING } from './clothing';
 import { FOOD } from './food';
 import { INFLATION } from './inflation';
+import { NEWSPAPER } from './newspaper';
 import { GOALS, GOAL_POINTS_BUDGET } from './goals';
 import { LAYOUT } from './layout';
 import { JOBS, LOCATIONS } from './locations';
@@ -24,6 +25,7 @@ export const defaultPack: DataPack = {
     garnishment: 18,
   },
   inflation: INFLATION,
+  newspaper: NEWSPAPER,
   food: FOOD,
   clothing: CLOTHING,
 };

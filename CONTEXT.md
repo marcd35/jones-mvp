@@ -50,3 +50,7 @@ _Avoid_: Move, hop
 **Weekend report**:
 The summary shown when a Week ends. It has one line for each effect of the Week's end, always in the same order (food, clothing wear, rent due, inflation step, newspaper), and shows "No change" for an effect that does nothing yet or that week.
 _Avoid_: Summary, receipt
+
+**Newspaper**:
+The full issue sold to a Player at Black's Market, carrying the current Week's headline.
+_Avoid_: Headline (for the full issue)
