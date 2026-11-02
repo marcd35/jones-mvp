@@ -602,8 +602,34 @@ describe('work', () => {
     });
     store().work();
     expect(player().money).toBe(STARTING_MONEY + 32);
+    expect(player().careerExperience[ENTRY_JOB.careerId]).toBe(1);
     expect(player().timeRemaining).toBe(MAX_TIME - 1.2);
     expect(store().lastEvent).toMatch(/Earned \$32/);
+    expect(store().lastEvent).toMatch(/Gained 1 Career experience point/);
+  });
+
+  it('adds experience to the current Career and unlocks its qualified rung', () => {
+    setPlayer({ careerExperience: { other: 3 } });
+    store().work();
+
+    expect(player().careerExperience).toEqual({
+      other: 3,
+      [ENTRY_JOB.careerId]: 1,
+    });
+
+    const nextRung = defaultPack.jobs.find(
+      (job) =>
+        job.careerId === ENTRY_JOB.careerId && job.experienceRequired === 1,
+    )!;
+    setPlayer({
+      locationId: EMPLOYMENT,
+      educationLevel: nextRung.educationRequired,
+    });
+    if (nextRung.educationPathRequired !== undefined) {
+      setPlayer({ educationPath: nextRung.educationPathRequired });
+    }
+    store().hire(nextRung.id);
+    expect(player().jobId).toBe(nextRung.id);
   });
 
   it('can be repeated: ten shifts use the whole Week and end it', () => {
@@ -614,6 +640,7 @@ describe('work', () => {
 
     store().work();
     expect(player().money).toBe(STARTING_MONEY + 10 * 32);
+    expect(player().careerExperience[ENTRY_JOB.careerId]).toBe(10);
     expect(store().currentWeek).toBe(2);
     expect(store().weekendReport?.reason).toBe('time');
     expect(player().locationId).toBe(HOME);
@@ -648,6 +675,7 @@ describe('work', () => {
     store().work();
     expect(player().money).toBe(STARTING_MONEY);
     expect(player().timeRemaining).toBe(ENTRY_JOB.workTimeHours - 0.1);
+    expect(player().careerExperience).toEqual({});
     expect(store().currentWeek).toBe(1);
     expect(store().lastEvent).toBe('Not enough time to work!');
   });

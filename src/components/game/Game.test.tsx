@@ -65,6 +65,9 @@ describe('game page', () => {
     // The screen stays open and shows the new cash.
     expect(dialog).toHaveTextContent(`$${STARTING_MONEY + 32}`);
     expect(screen.getByRole('status')).toHaveTextContent(/Earned \$32/);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /Gained 1 Career experience point/,
+    );
   });
 
   it('tells the Player when Work is not their job or they cannot afford the Time', async () => {
