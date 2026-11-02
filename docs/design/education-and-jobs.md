@@ -1,13 +1,13 @@
 # Education and jobs reference
 
-**Status: draft for author review.** T-02 / issue #4. This reference uses V1 spec r4 at `992f40d13c6f0d92c4ef407c6dd77110812ecb37`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) remain blocked until the author approves this reference.
+**Status: draft for author review.** T-02 / issue #4. This reference uses V1 spec r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) remain blocked until the author approves this reference.
 
 ## Author decisions and source priority
 
 - T-01's fresh-game observations are authoritative when they differ from the earlier design document.
 - Where T-01 did not establish a value, the earlier design document may supply a **replaceable v1 default**. Those values are assumptions, not observations from the original game.
 - A successful Work action adds one experience point to the Player's current career. Experience is retained within that career. This is the approved v1 rule; the original game's accumulation rate was not visible in fieldwork.
-- One career point satisfies a generic `Experience` or `Management experience` requirement as an author-approved, replaceable v1 assumption. The design document provides qualitative requirement labels, not this numeric value; T-01 only confirmed that some experience was required for Factory Assembly Worker.
+- One career point satisfies a generic `Experience`, `Management experience`, or `Basic management skills` requirement as an author-approved, replaceable v1 assumption (Q9 and Q10). The design document provides qualitative requirement labels, not this numeric value; T-01 only confirmed that some experience was required for Factory Assembly Worker.
 - V1 has no automatic firing rule. A clothing refusal does not end the held job.
 - The original-game fieldwork confirms that worn/torn clothes refuse Work with no pay and no Time spent, and that replacing clothes restores Work. The author decided that v1 has no rung-specific minimum clothing tier. Worn/torn clothes still block Work at every job, and a refusal does not end employment.
 
@@ -63,7 +63,7 @@ The qualitative requirement labels (such as `Experience` and `Management experie
 | Black's Market — Assistant Manager | $15/hr | None | `Management experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
 | Black's Market — Manager | $18/hr | One deeper education step (design default) | None | None (author decision) |
 | **Rent Office** — Groundskeeper | $6/hr | None | None | None (author decision) |
-| Rent Office — Apartment Manager | $8/hr | None | `Basic management skills` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Rent Office — Apartment Manager | $8/hr | None | `Basic management skills` (design document label); 1 career point satisfies it (author-approved, replaceable v1 assumption) | None (author decision) |
 
 The scope is the eight v1 employers above. Bank, Pawn Shop and Le Security are not functional v1 employers. T-01's Bank wage ladder is therefore outside this reference.
 
@@ -95,10 +95,10 @@ T-10 should extend the data model with a career ID and an experience threshold f
 
 ## Sources and confidence
 
-- `docs/specs/v1-spec.md` r4 at `992f40d13c6f0d92c4ef407c6dd77110812ecb37`, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-029, AC-008, AC-011, AC-012, UNK-004 and UNK-010.
+- `docs/specs/v1-spec.md` r4 at `53af617016a2d3768281148cd90dabbd7a14e940`, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-029, AC-008, AC-011, AC-012, UNK-004 and UNK-010.
 - `docs/research/economy-parameters.md` (T-01 / #3, round 3), sections 6, 8, 9 and 10. Wage values and observed Trade School/Cook/Factory requirements are high or medium confidence as noted there; the job-requirement designations not confirmed by fieldwork are assumptions.
 - `docs/design/game-design.md`, Career System and Education System. Use only for labelled, replaceable defaults where T-01 did not confirm a value.
 - T-03's current `Job` type in `src/types/index.ts`.
-- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience requirements as a replaceable v1 assumption; no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers.
+- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10); no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers.
 
 **Author review gate:** the author must review and approve this reference before T-10 or T-11 proceeds.
