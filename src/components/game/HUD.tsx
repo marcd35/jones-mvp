@@ -1,17 +1,16 @@
 'use client';
 
 import { useGameStore } from '@/store/useGameStore';
-import { Clock, DollarSign, Calendar, Utensils } from 'lucide-react';
+import { DollarSign, Calendar, Utensils } from 'lucide-react';
 
 export function HUD() {
-  const money = useGameStore((s) => s.money);
+  const money = useGameStore((s) => s.players[s.turnIndex].money);
   const currentWeek = useGameStore((s) => s.currentWeek);
-  const timeRemaining = useGameStore((s) => s.timeRemaining);
-  const hasEaten = useGameStore((s) => s.hasEaten);
-  const isStarving = useGameStore((s) => s.isStarving);
+  const hasEaten = useGameStore((s) => s.players[s.turnIndex].hasEaten);
+  const isStarving = useGameStore((s) => s.players[s.turnIndex].isStarving);
 
   return (
-    <div className="mb-6 grid w-full max-w-4xl grid-cols-2 gap-4 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-lg md:grid-cols-4">
+    <div className="mb-6 grid w-full max-w-4xl grid-cols-2 gap-4 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-lg md:grid-cols-3">
       {/* Money */}
       <div className="flex items-center gap-3">
         <div className="rounded-lg bg-green-900/50 p-2 text-green-400">
@@ -23,18 +22,7 @@ export function HUD() {
         </div>
       </div>
 
-      {/* Time */}
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-blue-900/50 p-2 text-blue-400">
-          <Clock className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase">
-            Time Left
-          </p>
-          <p className="font-mono text-xl text-white">{timeRemaining} hrs</p>
-        </div>
-      </div>
+      {/* Time is shown by the dial in the Board's Clock cell. */}
 
       {/* Week */}
       <div className="flex items-center gap-3">

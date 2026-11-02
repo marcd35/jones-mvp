@@ -1,83 +1,64 @@
-import { Location } from '@/types';
-import { TRAVEL_COST } from '@/lib/constants';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import type { CSSProperties } from 'react';
+import type { Location, LocationType } from '@/types';
 import {
   Building2,
   GraduationCap,
   Home,
   ShoppingCart,
   MapPin,
+  Lock,
 } from 'lucide-react';
 
 interface LocationTileProps {
   location: Location;
   isCurrent: boolean;
-  onMove: (id: string) => void;
-  onInteract: () => void;
-  disabled: boolean;
+  style: CSSProperties;
+  onSelect: (id: string) => void;
 }
 
-const ICONS = {
+const ICONS: Record<LocationType, typeof MapPin> = {
   work: Building2,
   education: GraduationCap,
   housing: Home,
   store: ShoppingCart,
+  other: MapPin,
 };
 
+// One Location on the ring: a flat placeholder tile. Art can replace the
+// contents without touching the layout.
 export function LocationTile({
   location,
   isCurrent,
-  onMove,
-  onInteract,
-  disabled,
+  style,
+  onSelect,
 }: LocationTileProps) {
-  const Icon = ICONS[location.type] || MapPin;
+  const closed = location.closed === true;
+  const Icon = closed ? Lock : ICONS[location.type];
 
   return (
-    <Card
-      className={`relative flex h-64 flex-col items-center justify-between p-6 transition-all duration-300 ${isCurrent ? 'bg-slate-800 ring-2 ring-blue-500' : 'opacity-80 hover:scale-105 hover:bg-slate-800 hover:opacity-100'}`}
-    >
-      {/* Visual Header */}
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div
-          className={`rounded-full p-4 ${isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}
-        >
-          <Icon className="h-8 w-8" />
-        </div>
-        <h3 className="text-lg font-bold text-slate-100">{location.name}</h3>
-        <p className="line-clamp-2 text-xs text-slate-400">
-          {location.description}
-        </p>
-      </div>
-
-      {/* Action Area */}
-      <div className="mt-4 w-full">
-        {isCurrent ? (
-          <Button
-            onClick={onInteract}
-            className="w-full bg-green-600 hover:bg-green-700"
-          >
-            Enter
-          </Button>
-        ) : (
-          <Button
-            onClick={() => onMove(location.id)}
-            disabled={disabled}
-            variant="secondary"
-            className="w-full"
-          >
-            Travel Here ({TRAVEL_COST}hr)
-          </Button>
-        )}
-      </div>
-
-      {isCurrent && (
-        <span className="absolute top-2 right-2 flex h-3 w-3">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-500"></span>
+    <div data-cell="location" style={style} className="min-h-0 min-w-0 p-0.5">
+      <button
+        type="button"
+        disabled={closed}
+        onClick={() => onSelect(location.id)}
+        className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-md border p-0.5 text-center transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+          closed
+            ? 'cursor-not-allowed border-slate-800 bg-slate-900 text-slate-600'
+            : isCurrent
+              ? 'border-blue-500 bg-slate-700 text-white'
+              : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+        }`}
+      >
+        <Icon className="h-4 w-4 shrink-0 sm:h-6 sm:w-6" aria-hidden />
+        <span className="text-[10px] leading-tight font-bold break-words sm:text-xs">
+          {location.name}
         </span>
-      )}
-    </Card>
+        {closed && (
+          <span className="text-[9px] tracking-wide uppercase sm:text-[10px]">
+            Closed
+          </span>
+        )}
+      </button>
+    </div>
   );
 }

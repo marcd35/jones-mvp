@@ -1,11 +1,10 @@
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useGameStore } from '@/store/useGameStore';
+import { defaultPack } from '@/data';
 import {
   CLASS_HOURS,
   FOOD_COST,
-  JOBS,
-  LOCATIONS,
   MEAL_HOURS,
   TUITION_COST,
   WORK_SHIFTS,
@@ -17,19 +16,26 @@ interface LocationModalProps {
 }
 
 export function LocationModal({ isOpen, onClose }: LocationModalProps) {
-  const currentLocationId = useGameStore((s) => s.currentLocationId);
+  const player = useGameStore((s) => s.players[s.turnIndex]);
+  const {
+    locationId: currentLocationId,
+    money,
+    timeRemaining,
+    educationLevel,
+    hasEaten,
+  } = player;
   const work = useGameStore((s) => s.work);
   const eat = useGameStore((s) => s.eat);
   const attendClass = useGameStore((s) => s.attendClass);
-  const money = useGameStore((s) => s.money);
-  const timeRemaining = useGameStore((s) => s.timeRemaining);
-  const educationLevel = useGameStore((s) => s.educationLevel);
-  const hasEaten = useGameStore((s) => s.hasEaten);
 
-  const currentLocation = LOCATIONS.find((l) => l.id === currentLocationId);
+  const currentLocation = defaultPack.locations.find(
+    (l) => l.id === currentLocationId,
+  );
 
   // Filter jobs available at this location
-  const localJobs = JOBS.filter((j) => j.locationId === currentLocationId);
+  const localJobs = defaultPack.jobs.filter(
+    (j) => j.locationId === currentLocationId,
+  );
 
   if (!currentLocation) return null;
 

@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest';
+import { defaultPack } from '@/data';
+import { loadPack, validatePack } from './loader';
+import type { BoardCell, DataPack } from '@/types';
+
+const withCells = (cells: BoardCell[]): DataPack => ({
+  ...defaultPack,
+  layout: { ...defaultPack.layout, cells },
+});
+
+describe('validatePack', () => {
+  it('accepts the shipped data', () => {
+    expect(validatePack(defaultPack)).toEqual([]);
+  });
+
+  it('rejects a layout with a missing cell', () => {
+    const problems = validatePack(withCells(defaultPack.layout.cells.slice(1)));
+    expect(problems).toContain('Board layout has no cell at 0,0.');
+  });
+
+  it('rejects a layout with a duplicate cell', () => {
+    const cells = [...defaultPack.layout.cells];
+    cells[1] = { ...cells[1], row: 0, col: 0 };
+    const problems = validatePack(withCells(cells));
+    expect(problems).toContain('Board layout has two cells at 0,0.');
+    expect(problems).toContain('Board layout has no cell at 0,1.');
+  });
+
+  it('rejects a cell that is not on the ring', () => {
+    const cells = [
+      ...defaultPack.layout.cells,
+      { row: 2, col: 2, content: { kind: 'blank' } } as BoardCell,
+    ];
+    expect(validatePack(withCells(cells))).toContain(
+      'Board layout cell 2,2 is not on the ring.',
+    );
+  });
+
+  it('rejects a Location placed twice or not placed', () => {
+    const cells = defaultPack.layout.cells.map((c) =>
+      c.content.kind === 'location' && c.content.locationId === 'bank'
+        ? { ...c, content: { kind: 'location', locationId: 'z-mart' } as const }
+        : c,
+    );
+    const problems = validatePack(withCells(cells));
+    expect(problems).toContain('Location "z-mart" is on the Board twice.');
+    expect(problems).toContain('Location "bank" is not on the Board.');
+  });
+
+  it('rejects a layout cell naming an unknown Location', () => {
+    const cells = defaultPack.layout.cells.map((c) =>
+      c.content.kind === 'location' && c.content.locationId === 'bank'
+        ? { ...c, content: { kind: 'location', locationId: 'moon' } as const }
+        : c,
+    );
+    expect(validatePack(withCells(cells))).toContain(
+      'Board layout names unknown Location "moon".',
+    );
+  });
+
+  it('rejects a layout without exactly one Clock cell', () => {
+    const cells = defaultPack.layout.cells.map((c) =>
+      c.content.kind === 'clock'
+        ? { ...c, content: { kind: 'blank' } as const }
+        : c,
+    );
+    expect(validatePack(withCells(cells))).toContain(
+      'Board layout needs exactly one Clock cell, found 0.',
+    );
+  });
+
+  it('rejects a job at an unknown Location', () => {
+    const pack = {
+      ...defaultPack,
+      jobs: [{ ...defaultPack.jobs[0], locationId: 'moon' }],
+    };
+    expect(validatePack(pack)).toContain(
+      'Job "fry-cook" is at unknown Location "moon".',
+    );
+  });
+
+  it('rejects an unknown or closed home', () => {
+    expect(validatePack({ ...defaultPack, homeLocationId: 'moon' })).toContain(
+      'Home Location "moon" is not a Location.',
+    );
+    expect(validatePack({ ...defaultPack, homeLocationId: 'bank' })).toContain(
+      'Home Location "bank" is closed.',
+    );
+  });
+
+  it('rejects an empty or negative walking-cost table', () => {
+    expect(validatePack({ ...defaultPack, walkingCosts: {} })).toContain(
+      'Walking-cost table is empty.',
+    );
+    expect(validatePack({ ...defaultPack, walkingCosts: { 1: -2 } })).toContain(
+      'Walking cost for 1 Steps must be a number of at least 0.',
+    );
+  });
+});
+
+describe('loadPack', () => {
+  it('returns a valid pack unchanged', () => {
+    expect(loadPack(defaultPack)).toBe(defaultPack);
+  });
+
+  it('fails with a readable message listing every problem', () => {
+    const pack = {
+      ...defaultPack,
+      homeLocationId: 'moon',
+      walkingCosts: {},
+    };
+    expect(() => loadPack(pack)).toThrow(
+      /Invalid data pack:[\s\S]*Home Location "moon" is not a Location\.[\s\S]*Walking-cost table is empty\./,
+    );
+  });
+});
