@@ -1,6 +1,6 @@
 # Education and jobs reference
 
-**Status: draft for author review.** T-02 / issue #4. This reference uses V1 spec r4 at `4709ece0ffdad823c2e6c1f1391a6287239c80d7`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) remain blocked until the author approves this reference.
+**Status: draft for author review.** T-02 / issue #4. This reference uses V1 spec r4 at `992f40d13c6f0d92c4ef407c6dd77110812ecb37`, based on r3 at `edebd52` plus T-01 fieldwork and the author's decisions in this session (2026-11-02). Observed facts and v1 defaults are distinguished below. T-10 (#28) and T-11 (#31) remain blocked until the author approves this reference.
 
 ## Author decisions and source priority
 
@@ -19,7 +19,7 @@ V1 has a starter level and one further level. Higher courses and job rungs are d
 | --- | --- | --- |
 | 0 — no course | No education credential | V1 data default. |
 | 1 — starter | Trade School or Jr. College | T-01 observed both on the initial course list. Trade School was completed; Jr. College was not. |
-| 2 — one deeper step | A technical or academic course after the starter | T-01 showed Electronics and Pre-Engineer. after Trade School but did not take either. The design document suggests Electronics/Pre-Engineer on the technical path and Bus. Admin/Academic on the college path. These are replaceable defaults, not confirmed course rules. |
+| 2 — one deeper step | A technical or academic course after the starter | T-01 showed Electronics and Pre-Engineer after Trade School but did not take either. The design document suggests Electronics/Pre-Engineer on the technical path and Bus. Admin/Academic on the college path. These are replaceable defaults, not confirmed course rules. |
 | Above level 2 | Locked in v1 | The design document's Engineering, Grad School and later courses are outside the one-deeper-step scope. Show them as locked only if represented in the data. |
 
 T-01 observed that Trade School takes 10 classes, each costing about 9.5% of a Week and no additional money. The enrollment fee was $50 in Week 1 and $52 in Week 3 and followed the price level. Finishing Trade School added it to the Statistics education list. These are observations for Trade School only; they do not establish later courses' fees, class counts, Time costs or effects. T-11 must keep those values in data and label any defaults it supplies.
@@ -95,7 +95,7 @@ T-10 should extend the data model with a career ID and an experience threshold f
 
 ## Sources and confidence
 
-- `docs/specs/v1-spec.md` r4 at `4709ece0ffdad823c2e6c1f1391a6287239c80d7`, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-029, AC-011, AC-012, UNK-004 and UNK-010.
+- `docs/specs/v1-spec.md` r4 at `992f40d13c6f0d92c4ef407c6dd77110812ecb37`, especially DEC-007, DEC-014, DEC-018, DEC-024, DEC-026 to DEC-029, AC-008, AC-011, AC-012, UNK-004 and UNK-010.
 - `docs/research/economy-parameters.md` (T-01 / #3, round 3), sections 6, 8, 9 and 10. Wage values and observed Trade School/Cook/Factory requirements are high or medium confidence as noted there; the job-requirement designations not confirmed by fieldwork are assumptions.
 - `docs/design/game-design.md`, Career System and Education System. Use only for labelled, replaceable defaults where T-01 did not confirm a value.
 - T-03's current `Job` type in `src/types/index.ts`.
