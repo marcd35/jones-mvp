@@ -38,9 +38,11 @@ describe('game page', () => {
     await userEvent.click(tileButton('Employment Office'));
     await userEvent.click(tileButton('Employment Office'));
     const office = screen.getByRole('dialog', { name: 'Employment Office' });
-    expect(office).toHaveTextContent('Requires Education Lvl 1'); // locked rung
+    expect(office).toHaveTextContent('Locked: requires'); // locked rung
     await userEvent.click(
-      within(office).getByRole('button', { name: 'Take the Cook job' }),
+      within(office).getByRole('button', {
+        name: 'Take the Cook job at Monolith Burger',
+      }),
     );
     expect(player().jobId).toBe('cook');
     expect(office).toHaveTextContent('Your job');
@@ -328,7 +330,9 @@ describe('Goals setup screen (AC-005)', () => {
     await userEvent.click(
       within(
         screen.getByRole('dialog', { name: 'Employment Office' }),
-      ).getByRole('button', { name: 'Take the Cook job' }),
+      ).getByRole('button', {
+        name: 'Take the Cook job at Monolith Burger',
+      }),
     );
     await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
     await userEvent.click(tileButton('Monolith Burger'));
@@ -618,7 +622,7 @@ describe('clothing on screen (AC-008)', () => {
     expect(dialog).toHaveTextContent('Casual Clothes (wears out in 1 Week)');
   });
 
-  it('tells a Player in worn clothes why they cannot work or take the job', async () => {
+  it('shows the global clothing rule without making it a hiring requirement', async () => {
     render(<Home />);
     wear(6);
     act(() =>
@@ -644,11 +648,60 @@ describe('clothing on screen (AC-008)', () => {
     await userEvent.click(tileButton('Employment Office'));
     await userEvent.click(tileButton('Employment Office'));
     const office = screen.getByRole('dialog', { name: 'Employment Office' });
-    expect(office).toHaveTextContent('Dress: Casual Clothes or better');
-    expect(office).toHaveTextContent('Your clothes are worn out.');
+    expect(office).toHaveTextContent('No job-specific tier');
+    expect(office).toHaveTextContent('worn or torn clothes block Work');
+    await userEvent.click(
+      within(office).getByRole('button', {
+        name: 'Take the Cook job at Monolith Burger',
+      }),
+    );
+    expect(player().jobId).toBe('cook');
+  });
+
+  it('lists job ladders for all eight employers with current wages and requirements', async () => {
+    act(() => useGameStore.setState({ priceLevel: 1.25 }));
+    render(<Home />);
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+
+    const office = screen.getByRole('dialog', { name: 'Employment Office' });
+    expect(within(office).getAllByRole('region')).toHaveLength(8);
+    expect(within(office).getAllByText(/^Education:/)).toHaveLength(32);
     expect(
-      within(office).queryByRole('button', { name: 'Take the Cook job' }),
-    ).toBeNull();
+      within(office).getByRole('region', { name: 'Z-Mart jobs' }),
+    ).toHaveTextContent('$5/hr');
+    expect(
+      within(office).getByRole('region', { name: 'Factory jobs' }),
+    ).toHaveTextContent('1 point (0 earned)');
+    expect(office).toHaveTextContent(
+      'Trade School sufficient (T-01 observed; exact minimum unknown)',
+    );
+    expect(office).toHaveTextContent('No job-specific tier');
+    expect(office).toHaveTextContent(
+      'Locked: needs 1 point of experience in this Career',
+    );
+  });
+
+  it('explains when a qualified education level is on the wrong path', async () => {
+    act(() =>
+      useGameStore.setState((state) => ({
+        players: [
+          {
+            ...state.players[0],
+            educationLevel: 2,
+            educationPath: 'college',
+          },
+        ],
+      })),
+    );
+    render(<Home />);
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+
+    const socketJobs = screen.getByRole('region', { name: 'Socket City jobs' });
+    expect(socketJobs).toHaveTextContent(
+      'Locked: requires the technical education path; your current path is college.',
+    );
   });
 
   it('fills the clothing wear line of the weekend report', async () => {

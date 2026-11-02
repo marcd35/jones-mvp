@@ -63,7 +63,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 9;
+const STORAGE_VERSION = 10;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -86,12 +86,15 @@ const newPlayer = (pack: DataPack): Player => ({
   money: pack.startingMoney,
   timeRemaining: MAX_TIME,
   educationLevel: 0,
+  educationPath: null,
   foodWeeks: 0,
   ownedGoods: [],
   isStarving: false,
   clothes: { tierId: pack.clothing.startTierId, weeksWorn: 0 },
   locationId: pack.homeLocationId,
   jobId: null,
+  heldWage: null,
+  careerExperience: {},
   goals: defaultGoalPoints(pack),
   owedRent: 0,
   rentDueWeek: pack.rent.intervalWeeks,
@@ -131,8 +134,12 @@ const gameStoreCreator =
       locationOf(pack.rent.locationId)?.name ?? 'the rent office';
 
     // Why the Player's clothes bar the job, or null when they meet its
-    // requirement (AC-008).
+    // optional data tier. Worn clothes globally block Work (AC-008).
     const clothingBlock = (job: Job, clothes: Player['clothes']) => {
+      if (clothesState(pack.clothing, clothes) === 'worn') {
+        const shop = locationOf(pack.clothing.locationId)?.name ?? 'the shop';
+        return `Your clothes are worn out. Buy new ones at ${shop} to work as ${job.title}.`;
+      }
       if (meetsClothing(pack.clothing, clothes, job.clothingRequired)) {
         return null;
       }
@@ -376,7 +383,24 @@ const gameStoreCreator =
         }
         if (player.educationLevel < job.educationRequired) {
           notify(
-            `Requires education level ${job.educationRequired} to work as ${job.title}.`,
+            `Education requirement: ${job.educationLabel} to apply for ${job.title}.`,
+          );
+          return;
+        }
+        if (
+          job.educationPathRequired !== undefined &&
+          player.educationPath !== job.educationPathRequired
+        ) {
+          notify(
+            `Requires the ${job.educationPathRequired} education path to apply for ${job.title}.`,
+          );
+          return;
+        }
+        if (
+          (player.careerExperience[job.careerId] ?? 0) < job.experienceRequired
+        ) {
+          notify(
+            `Requires ${job.experienceRequired} ${job.experienceRequired === 1 ? 'point' : 'points'} of ${locationOf(job.locationId)?.name ?? 'career'} experience to apply for ${job.title}.`,
           );
           return;
         }
@@ -384,17 +408,24 @@ const gameStoreCreator =
           notify(`You already work as ${job.title}.`);
           return;
         }
-        const dressed = clothingBlock(job, player.clothes);
+        // Future data packs may still define a rung-specific tier, but the
+        // approved v1 jobs omit it, so clothing does not block hiring.
+        const dressed =
+          job.clothingRequired === undefined
+            ? null
+            : clothingBlock(job, player.clothes);
         if (dressed) {
           notify(dressed);
           return;
         }
-
         set((s) => ({
-          players: patchActive(s, { jobId }),
+          players: patchActive(s, {
+            jobId,
+            heldWage: priceOf(job.wage),
+          }),
           ...withEvent(
             s,
-            `Hired as ${job.title} at ${locationOf(job.locationId)?.name ?? 'work'}.`,
+            `Hired as ${job.title} at ${locationOf(job.locationId)?.name ?? 'work'} for $${priceOf(job.wage)}/hr.`,
           ),
         }));
       },
@@ -402,7 +433,7 @@ const gameStoreCreator =
       work: () => {
         const state = get();
         if (state.gameStatus !== 'playing') return;
-        const { timeRemaining, locationId, jobId, clothes } =
+        const { timeRemaining, locationId, jobId, heldWage, clothes } =
           activePlayer(state);
 
         const job = pack.jobs.find((j) => j.id === jobId);
@@ -428,7 +459,8 @@ const gameStoreCreator =
 
         set((s) => {
           const player = activePlayer(s);
-          const earned = job.wage * job.shiftHours;
+          const hourlyWage = heldWage ?? scalePrice(job.wage, s.priceLevel);
+          const earned = hourlyWage * job.shiftHours;
           const garnishment = Math.min(
             player.owedRent,
             pack.rent.garnishment,
@@ -894,6 +926,24 @@ export const useGameStore = create<GameStore>()(
           ...p,
           ownedGoods: p.ownedGoods ?? [],
         }));
+      }
+      // v10 tracks experience by Career and freezes the offered wage at hire.
+      if (version < 10) {
+        state.players = (state.players as Player[]).map((p) => {
+          // v1's old $15 Shift Manager rung maps to the approved Monolith
+          // Manager role while preserving the wage already held in that save.
+          const legacyShiftManager = p.jobId === 'shift-manager';
+          const jobId = legacyShiftManager ? 'monolith-manager' : p.jobId;
+          const job = gamePack.jobs.find((candidate) => candidate.id === jobId);
+          return {
+            ...p,
+            jobId,
+            educationPath: p.educationPath ?? null,
+            careerExperience: p.careerExperience ?? {},
+            heldWage:
+              p.heldWage ?? (legacyShiftManager ? 15 : (job?.wage ?? null)),
+          };
+        });
       }
       return state as never;
     },

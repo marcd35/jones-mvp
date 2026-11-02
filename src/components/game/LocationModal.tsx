@@ -52,10 +52,16 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
     (l) => l.id === currentLocationId,
   );
 
-  // Filter jobs available at this location
+  // Filter jobs available at this location.
   const localJobs = defaultPack.jobs.filter(
     (j) => j.locationId === currentLocationId,
   );
+  const employerGroups = defaultPack.locations
+    .map((location) => ({
+      location,
+      jobs: defaultPack.jobs.filter((job) => job.locationId === location.id),
+    }))
+    .filter((group) => group.jobs.length > 0);
   const locationName = (id: string) =>
     defaultPack.locations.find((l) => l.id === id)?.name ?? id;
   const tierName = (id: string) =>
@@ -92,100 +98,154 @@ export function LocationModal({ isOpen, onClose }: LocationModalProps) {
         <p className="text-sm text-slate-300">{currentLocation.description}</p>
 
         {/* === WORK INTERACTION === */}
-        {currentLocation.type === 'work' && (
+        {localJobs.length > 0 && (
           <div className="space-y-3">
             <p className="flex justify-between text-sm text-slate-300">
               <span>Cash</span>
               <span className="font-mono font-bold text-white">${money}</span>
             </p>
-            {localJobs.map((job) => (
-              <div
-                key={job.id}
-                className="rounded border border-slate-700 bg-slate-800 p-3"
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-bold text-white">{job.title}</span>
-                  <span className="text-green-400">${job.wage}/hr</span>
+            {localJobs.map((job) => {
+              const hourlyWage =
+                jobId === job.id && player.heldWage !== null
+                  ? player.heldWage
+                  : scalePrice(job.wage, priceLevel);
+              return (
+                <div
+                  key={job.id}
+                  className="rounded border border-slate-700 bg-slate-800 p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-bold text-white">{job.title}</span>
+                    <span className="text-green-400">${hourlyWage}/hr</span>
+                  </div>
+                  {jobId === job.id &&
+                  (wornState === 'worn' ||
+                    !meetsClothing(clothing, clothes, job.clothingRequired)) ? (
+                    <p className="text-xs text-red-400">
+                      {wornState === 'worn'
+                        ? 'Your clothes are worn out. '
+                        : `Needs ${tierName(job.clothingRequired ?? '')}. `}
+                      Buy clothes at {locationName(clothing.locationId)}.
+                    </p>
+                  ) : jobId === job.id ? (
+                    <Button
+                      onClick={() => work()}
+                      disabled={timeRemaining < job.workTimeHours}
+                      className="min-h-11 w-full text-sm"
+                    >
+                      Work: +${hourlyWage * job.shiftHours} for{' '}
+                      {formatHours(job.workTimeHours)} hrs
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      Not your job. Get hired at an employment office.
+                    </p>
+                  )}
                 </div>
-                {jobId === job.id &&
-                !meetsClothing(clothing, clothes, job.clothingRequired) ? (
-                  <p className="text-xs text-red-400">
-                    {wornState === 'worn'
-                      ? 'Your clothes are worn out. '
-                      : `Needs ${tierName(job.clothingRequired ?? '')}. `}
-                    Buy clothes at {locationName(clothing.locationId)}.
-                  </p>
-                ) : jobId === job.id ? (
-                  <Button
-                    onClick={() => work()}
-                    disabled={timeRemaining < job.workTimeHours}
-                    className="min-h-11 w-full text-sm"
-                  >
-                    Work: +${job.wage * job.shiftHours} for{' '}
-                    {formatHours(job.workTimeHours)} hrs
-                  </Button>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    Not your job. Get hired at an employment office.
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* === EMPLOYMENT INTERACTION === */}
         {currentLocation.type === 'employment' && (
           <div className="space-y-3">
-            {defaultPack.jobs.map((job) => {
-              const isQualified = educationLevel >= job.educationRequired;
-              return (
-                <div
-                  key={job.id}
-                  className="rounded border border-slate-700 bg-slate-800 p-3"
-                >
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="font-bold text-white">{job.title}</span>
-                    <span className="text-green-400">${job.wage}/hr</span>
-                  </div>
-                  <p className="mb-2 text-xs text-slate-400">
-                    {locationName(job.locationId)}: ${job.wage * job.shiftHours}{' '}
-                    a shift
-                  </p>
-                  {job.clothingRequired !== undefined && (
-                    <p className="mb-2 text-xs text-slate-400">
-                      Dress: {tierName(job.clothingRequired)} or better
-                    </p>
-                  )}
-                  {!isQualified ? (
-                    <p className="text-xs text-red-400">
-                      Requires Education Lvl {job.educationRequired}
-                    </p>
-                  ) : !meetsClothing(
-                      clothing,
-                      clothes,
-                      job.clothingRequired,
-                    ) ? (
-                    <p className="text-xs text-red-400">
-                      {wornState === 'worn'
-                        ? 'Your clothes are worn out.'
-                        : `Requires ${tierName(job.clothingRequired ?? '')}.`}{' '}
-                      Buy clothes at {locationName(clothing.locationId)}.
-                    </p>
-                  ) : jobId === job.id ? (
-                    <p className="text-xs font-bold text-green-400">Your job</p>
-                  ) : (
-                    <Button
-                      onClick={() => hire(job.id)}
-                      className="min-h-11 w-full text-sm"
-                      aria-label={`Take the ${job.title} job`}
+            <p className="text-xs text-slate-300">
+              Listed wages use this Week&apos;s price level. Hiring fixes the
+              offered hourly wage. No job has a clothing tier; worn or torn
+              clothes block Work at every employer.
+            </p>
+            {employerGroups.map(({ location, jobs }) => (
+              <section
+                key={location.id}
+                aria-label={`${location.name} jobs`}
+                className="space-y-2"
+              >
+                <h3 className="text-sm font-bold text-white">
+                  {location.name}
+                </h3>
+                {jobs.map((job) => {
+                  const hasEducationLevel =
+                    educationLevel >= job.educationRequired;
+                  const hasEducationPath =
+                    job.educationPathRequired === undefined ||
+                    player.educationPath === job.educationPathRequired;
+                  const isEducationQualified =
+                    hasEducationLevel && hasEducationPath;
+                  const careerExperience =
+                    player.careerExperience[job.careerId] ?? 0;
+                  const isExperienceQualified =
+                    careerExperience >= job.experienceRequired;
+                  const hourlyWage = scalePrice(job.wage, priceLevel);
+                  const shiftPay = hourlyWage * job.shiftHours;
+                  return (
+                    <div
+                      key={job.id}
+                      className="rounded border border-slate-700 bg-slate-800 p-3"
                     >
-                      Take job
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="font-bold text-white">
+                          {job.title}
+                        </span>
+                        <span className="text-green-400">${hourlyWage}/hr</span>
+                      </div>
+                      <p className="mb-2 text-xs text-slate-400">
+                        ${shiftPay} for a {job.shiftHours}-hour shift
+                      </p>
+                      <dl className="mb-2 space-y-1 text-xs text-slate-400">
+                        <div>
+                          <dt className="inline font-semibold">Education: </dt>
+                          <dd className="inline">{job.educationLabel}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline font-semibold">
+                            Career experience:{' '}
+                          </dt>
+                          <dd className="inline">
+                            {job.experienceRequired === 0
+                              ? 'None'
+                              : `${job.experienceRequired} ${job.experienceRequired === 1 ? 'point' : 'points'} (${careerExperience} earned)`}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="inline font-semibold">Clothing: </dt>
+                          <dd className="inline">
+                            No job-specific tier; worn or torn clothes block
+                            Work globally.
+                          </dd>
+                        </div>
+                      </dl>
+                      {jobId === job.id ? (
+                        <p className="text-xs font-bold text-green-400">
+                          Your job — held at ${player.heldWage ?? hourlyWage}/hr
+                        </p>
+                      ) : !isEducationQualified ? (
+                        <p className="text-xs text-red-400">
+                          {hasEducationLevel
+                            ? `Locked: requires the ${job.educationPathRequired} education path; your current path is ${player.educationPath ?? 'none'}.`
+                            : `Locked: requires ${job.educationLabel}.`}
+                        </p>
+                      ) : !isExperienceQualified ? (
+                        <p className="text-xs text-red-400">
+                          Locked: needs {job.experienceRequired}{' '}
+                          {job.experienceRequired === 1 ? 'point' : 'points'} of
+                          experience in this Career; you have {careerExperience}
+                          .
+                        </p>
+                      ) : (
+                        <Button
+                          onClick={() => hire(job.id)}
+                          className="min-h-11 w-full text-sm"
+                          aria-label={`Take the ${job.title} job at ${location.name}`}
+                        >
+                          Apply
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            ))}
           </div>
         )}
 

@@ -109,6 +109,39 @@ describe('validatePack', () => {
     expect(validatePack(pack)).toContain('Job "cook" is defined twice.');
   });
 
+  it('rejects jobs without Career or requirement metadata', () => {
+    const job = defaultPack.jobs[0];
+    const problems = validatePack({
+      ...defaultPack,
+      jobs: [
+        {
+          ...job,
+          careerId: undefined as unknown as string,
+          educationLabel: '',
+          experienceRequired: -1,
+        },
+      ],
+    });
+    expect(problems).toContain(`Job "${job.id}" needs a Career id.`);
+    expect(problems).toContain(
+      `Job "${job.id}" needs an education requirement label.`,
+    );
+    expect(problems).toContain(
+      `Job "${job.id}" needs an experience requirement of at least 0.`,
+    );
+  });
+
+  it('rejects a job with an unknown education path', () => {
+    const job = defaultPack.jobs[0];
+    const problems = validatePack({
+      ...defaultPack,
+      jobs: [{ ...job, educationPathRequired: 'business' as 'technical' }],
+    });
+    expect(problems).toContain(
+      `Job "${job.id}" needs an education path of technical or college.`,
+    );
+  });
+
   it.each([
     ['wage', -1, 'Job "cook" needs a wage of at least 0.'],
     ['wage', NaN, 'Job "cook" needs a wage of at least 0.'],

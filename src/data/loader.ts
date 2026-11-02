@@ -65,6 +65,20 @@ export function validatePack(pack: DataPack): string[] {
     }
     if (!(job.wage >= 0))
       problems.push(`Job "${job.id}" needs a wage of at least 0.`);
+    if (typeof job.careerId !== 'string' || job.careerId.trim().length === 0) {
+      problems.push(`Job "${job.id}" needs a Career id.`);
+    }
+    if (
+      typeof job.educationLabel !== 'string' ||
+      job.educationLabel.trim().length === 0
+    ) {
+      problems.push(`Job "${job.id}" needs an education requirement label.`);
+    }
+    if (!(job.experienceRequired >= 0)) {
+      problems.push(
+        `Job "${job.id}" needs an experience requirement of at least 0.`,
+      );
+    }
     if (!(job.shiftHours > 0))
       problems.push(`Job "${job.id}" needs a shift of more than 0 paid hours.`);
     if (!(job.workTimeHours > 0)) {
@@ -79,6 +93,14 @@ export function validatePack(pack: DataPack): string[] {
     if (!(job.educationRequired >= 0)) {
       problems.push(
         `Job "${job.id}" needs an education requirement of at least 0.`,
+      );
+    }
+    if (
+      job.educationPathRequired !== undefined &&
+      !['technical', 'college'].includes(job.educationPathRequired)
+    ) {
+      problems.push(
+        `Job "${job.id}" needs an education path of technical or college.`,
       );
     }
     if (
