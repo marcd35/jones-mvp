@@ -569,6 +569,33 @@ describe('hire', () => {
     });
   });
 
+  it.each([
+    ['Experience', 'factory-assembly-worker', 20],
+    ['Management experience', 'factory-department-manager', 40],
+  ])(
+    'applies the %s threshold: one point short is refused, exactly %i accepted',
+    (_label, jobId, threshold) => {
+      const job = defaultPack.jobs.find((candidate) => candidate.id === jobId)!;
+      expect(job.experienceRequired).toBe(threshold);
+      setPlayer({
+        locationId: EMPLOYMENT,
+        educationLevel: job.educationRequired,
+        educationPath: job.educationPathRequired ?? null,
+      });
+
+      setPlayer({
+        careerExperience: { [job.careerId]: threshold - 1 },
+      });
+      store().hire(job.id);
+      expect(player().jobId).not.toBe(job.id);
+      expect(store().lastEvent).toMatch(/experience/i);
+
+      setPlayer({ careerExperience: { [job.careerId]: threshold } });
+      store().hire(job.id);
+      expect(player().jobId).toBe(job.id);
+    },
+  );
+
   it('refuses a mismatched education path and accepts the required path', () => {
     const job = defaultPack.jobs.find(
       (candidate) => candidate.id === 'socket-repair',
@@ -654,7 +681,7 @@ describe('work', () => {
 
     const nextRung = defaultPack.jobs.find(
       (job) =>
-        job.careerId === ENTRY_JOB.careerId && job.experienceRequired === 1,
+        job.careerId === ENTRY_JOB.careerId && job.experienceRequired === 20,
     )!;
     setPlayer({
       locationId: EMPLOYMENT,
@@ -663,6 +690,10 @@ describe('work', () => {
     if (nextRung.educationPathRequired !== undefined) {
       setPlayer({ educationPath: nextRung.educationPathRequired });
     }
+    store().hire(nextRung.id);
+    expect(player().jobId).toBe(ENTRY_JOB.id);
+
+    setPlayer({ careerExperience: { [ENTRY_JOB.careerId]: 20 } });
     store().hire(nextRung.id);
     expect(player().jobId).toBe(nextRung.id);
   });

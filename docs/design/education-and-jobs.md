@@ -7,7 +7,7 @@
 - T-01's fresh-game observations are authoritative when they differ from the earlier design document.
 - Where T-01 did not establish a value, the earlier design document may supply a **replaceable v1 default**. Those values are assumptions, not observations from the original game.
 - A successful Work action adds one experience point to the Player's current career. Experience is retained within that career. This is the approved v1 rule; the original game's accumulation rate was not visible in fieldwork.
-- One career point satisfies a generic `Experience`, `Management experience`, or `Basic management skills` requirement as an author-approved, replaceable v1 assumption (Q9 and Q10). The design document provides qualitative requirement labels, not this numeric value; T-01 only confirmed that some experience was required for Factory Assembly Worker.
+- 20 career points satisfy a generic `Experience` or `Basic management skills` requirement, and 40 career points satisfy `Management experience`. This is the author's decision of 2026-11-04 (issue #49), replacing the earlier one-point default (Q9 and Q10); the numbers are replaceable v1 defaults, chosen because the #45 balance gate (PR #48) failed with one point. The design document provides qualitative requirement labels, not these numeric values; T-01 only confirmed that some experience was required for Factory Assembly Worker.
 - V1 has no automatic firing rule. A clothing refusal does not end the held job.
 - The original-game fieldwork confirms that worn/torn clothes refuse Work with no pay and no Time spent, and that replacing clothes restores Work. The author decided that v1 has no rung-specific minimum clothing tier. Worn/torn clothes still block Work at every job, and a refusal does not end employment.
 - T-01 observed Trade School at 10 classes and about 9.5% of a 12-hour Week per class, with no per-class charge. In Q11, the author approved using those same 10 classes and 9.5%-Week class Time as clearly labelled, replaceable defaults for Jr. College and deeper courses. Hi-Tech U charges the observed $50 Week-1 enrollment fee once per course, scaled with the current price level; there is no per-class fee. Course enrollment spends 1 hour as a replaceable design-document default. These defaults are not claims about unobserved original-game behavior.
@@ -38,42 +38,42 @@ T-01 observed that Trade School takes 10 classes, each costing about 9.5% of a W
 
 Hourly wages below are the Week 1 list at price level 1.00, observed in T-01. The current-price listing changes with the price level; after hiring, the Player keeps the hourly wage offered at hire (T-01 fieldwork and #28's acceptance criteria). The design document's wage figures are not used where they differ from T-01.
 
-The qualitative requirement labels (such as `Experience` and `Management experience`) follow the earlier design document where T-01 did not establish the requirement. These labels are replaceable v1 defaults, not verified original-game checks. For v1, the author-approved, replaceable numeric default is that one career point satisfies either label; the design document supplies the qualitative labels, not this number. For Factory Assembly Worker, T-01 observed that some experience was required, but did not establish a numeric threshold; one career point is the author-approved v1 default there as well. V1 has no rung-specific clothing tier (author decision); worn/torn clothes block Work at every rung and do not affect hiring eligibility.
+The qualitative requirement labels (such as `Experience` and `Management experience`) follow the earlier design document where T-01 did not establish the requirement. These labels are replaceable v1 defaults, not verified original-game checks. For v1, the author-approved, replaceable numeric defaults (decision of 2026-11-04, replacing the earlier one-point default because the #45 balance gate, PR #48, failed with one point) are that 20 career points satisfy `Experience` or `Basic management skills` and 40 career points satisfy `Management experience`; the design document supplies the qualitative labels, not these numbers. For Factory Assembly Worker, T-01 observed that some experience was required, but did not establish a numeric threshold; 20 career points is the author-approved v1 default there as well. V1 has no rung-specific clothing tier (author decision); worn/torn clothes block Work at every rung and do not affect hiring eligibility.
 
 | Employer and rung | Week 1 wage | Minimum education | Minimum experience | Minimum clothing |
 | --- | ---: | --- | --- | --- |
 | **Z-Mart** — Clerk | $4/hr | None | None | None (author decision) |
 | Z-Mart — Assistant Manager | $6/hr | None | None | None (author decision) |
-| Z-Mart — Manager | $7/hr | Trade School or higher (design default) | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Z-Mart — Manager | $7/hr | Trade School or higher (design default) | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | **Monolith Burger** — Cook | $4/hr | None (hired first try in T-01) | None observed | None (author decision) |
 | Monolith Burger — Clerk | $5/hr | None | None | None (author decision) |
 | Monolith Burger — Assistant Manager | $6/hr | Trade School (design default) | None | None (author decision) |
-| Monolith Burger — Manager | $7/hr | Trade School or higher (design default) | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
-| **QT Clothing** — Salesperson | $7/hr | None | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
-| QT Clothing — Assistant Manager | $9/hr | Trade School (design default) | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Monolith Burger — Manager | $7/hr | Trade School or higher (design default) | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
+| **QT Clothing** — Salesperson | $7/hr | None | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
+| QT Clothing — Assistant Manager | $9/hr | Trade School (design default) | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | QT Clothing — Manager | $12/hr | One deeper education step (design default) | None | None (author decision) |
 | **Socket City** — Salesperson | $5/hr | None | None | None (author decision) |
 | Socket City — Electronic's Repair | $11/hr | One deeper technical course (design default) | None | None (author decision) |
-| Socket City — Manager | $14/hr | One deeper education step (design default) | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Socket City — Manager | $14/hr | One deeper education step (design default) | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | **Hi-Tech U** — Janitor | $4/hr | None | None | None (author decision) |
 | Hi-Tech U — Teacher | $11/hr | Jr. College or higher (design default for college) | None | None (author decision) |
 | Hi-Tech U — Professor | $20/hr | One deeper education step (design default); design document says advanced degree | None | None (author decision) |
 | **Factory** — Janitor | $7/hr | None | None | None (author decision) |
-| Factory — Assembly Worker | $8/hr | Trade School was sufficient in T-01; exact minimum not observed | Some experience was required (**observed**); 1 career point satisfies it (author-approved replaceable v1 numeric default; threshold not observed) | None (author decision) |
+| Factory — Assembly Worker | $8/hr | Trade School was sufficient in T-01; exact minimum not observed | Some experience was required (**observed**); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default; threshold not observed) | None (author decision) |
 | Factory — Secretary | $9/hr | Trade School (design default for basic education) | None | None (author decision) |
 | Factory — Machinist's Helper | $10/hr | One deeper technical course (design default) | None | None (author decision) |
 | Factory — Executive Secretary | $18/hr | One deeper education step (design default) | None | None (author decision) |
 | Factory — Machinist | $19/hr | One deeper technical course (design default) | None | None (author decision) |
-| Factory — Department Manager | $22/hr | None | `Management experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Factory — Department Manager | $22/hr | None | `Management experience` (design document label); 40 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | Factory — Engineer | $23/hr | One deeper technical course (design default for engineering degree) | None | None (author decision) |
-| Factory — General Manager | $25/hr | One deeper education step (design default) | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Factory — General Manager | $25/hr | One deeper education step (design default) | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | **Black's Market** — Janitor | $5/hr | None (design default; T-01 saw no opening) | None | None (author decision) |
 | Black's Market — Checker | $8/hr | None | None | None (author decision) |
-| Black's Market — Butcher | $12/hr | None | `Experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
-| Black's Market — Assistant Manager | $15/hr | None | `Management experience` (design document label); 1 career point satisfies it (author-approved v1 numeric default) | None (author decision) |
+| Black's Market — Butcher | $12/hr | None | `Experience` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
+| Black's Market — Assistant Manager | $15/hr | None | `Management experience` (design document label); 40 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 | Black's Market — Manager | $18/hr | One deeper education step (design default) | None | None (author decision) |
 | **Rent Office** — Groundskeeper | $6/hr | None | None | None (author decision) |
-| Rent Office — Apartment Manager | $8/hr | None | `Basic management skills` (design document label); 1 career point satisfies it (author-approved, replaceable v1 assumption) | None (author decision) |
+| Rent Office — Apartment Manager | $8/hr | None | `Basic management skills` (design document label); 20 career points satisfy it (author decision 2026-11-04, replaceable v1 default) | None (author decision) |
 
 The scope is the eight v1 employers above. Bank, Pawn Shop and Le Security are not functional v1 employers. T-01's Bank wage ladder is therefore outside this reference.
 
@@ -91,7 +91,7 @@ The design document does not define exact course equivalencies or numeric cutoff
 
 ## Experience and job retention
 
-For v1, each successful Work action adds one point to the Player's experience for that career. The current job identifies the career; T-10 must give jobs a data-defined career ID so that several rungs in the same career share experience. Switching careers does not erase previously earned experience in another career. The author-approved, replaceable v1 numeric default is that one career point satisfies a generic `Experience`, `Management experience`, or `Basic management skills` requirement. Those qualitative labels come from the design document; the one-point number is an author-approved assumption, not an observed original-game value or a number specified by that document. Factory Assembly Worker's requirement for some experience is observed, but its one-point threshold remains this numeric v1 assumption.
+For v1, each successful Work action adds one point to the Player's experience for that career. The current job identifies the career; T-10 must give jobs a data-defined career ID so that several rungs in the same career share experience. Switching careers does not erase previously earned experience in another career. The author-approved, replaceable v1 numeric defaults (decision of 2026-11-04, issue #49) are that 20 career points satisfy a generic `Experience` or `Basic management skills` requirement and 40 career points satisfy `Management experience`; they replace the earlier one-point default because the #45 balance gate (PR #48) failed with one point. Those qualitative labels come from the design document; the numbers are author-approved assumptions, not observed original-game values or numbers specified by that document. Factory Assembly Worker's requirement for some experience is observed, but its 20-point threshold remains this numeric v1 assumption.
 
 The original fieldwork did not reveal an experience counter after about 40 Cook shifts. It did verify that Factory Assembly Worker required experience even after Trade School was completed. The rule above is the author's v1 default, not a claim about how the original game counts experience.
 
@@ -109,6 +109,6 @@ The Player state retains experience in `careerExperience`, keyed by career ID, s
 - `docs/research/economy-parameters.md` (T-01 / #3, round 3), sections 6, 8, 9 and 10. Wage values and observed Trade School/Cook/Factory requirements are high or medium confidence as noted there; the job-requirement designations not confirmed by fieldwork are assumptions.
 - `docs/design/game-design.md`, Career System and Education System. Use only for labelled, replaceable defaults where T-01 did not confirm a value.
 - T-03's current `Job` type in `src/types/index.ts`.
-- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point satisfies qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10); no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers; Q11 authorizes the Trade School 10-class and 9.5%-Week class Time values as replaceable defaults for unobserved courses, with one enrollment fee per course and no per-class fee.
+- Author decisions in this implementation session, 2026-11-02: one experience point per successful Work action in the current career; one point originally satisfied qualitative Experience/Management experience/Basic management skills requirements as a replaceable v1 assumption (Q9 and Q10), superseded by the 2026-11-04 decision (issue #49): 20 points satisfy Experience/Basic management skills and 40 satisfy Management experience, as replaceable v1 defaults, because the #45 balance gate (PR #48) failed with one point; no automatic firing; design-document defaults may fill unobserved data gaps; no rung-specific clothing tiers; Q11 authorizes the Trade School 10-class and 9.5%-Week class Time values as replaceable defaults for unobserved courses, with one enrollment fee per course and no per-class fee.
 
 **Author review gate:** passed; the author approved this reference on 2026-11-02.
