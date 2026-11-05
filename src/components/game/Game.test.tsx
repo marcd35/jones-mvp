@@ -811,3 +811,103 @@ describe('household goods on screen (AC-009)', () => {
     ).toHaveTextContent(first.name);
   });
 });
+
+describe('Goal progress on screen (#34)', () => {
+  const progress = () => screen.getByRole('region', { name: 'Goal progress' });
+  const row = (id: string) =>
+    progress().querySelector(`[data-goal="${id}"]`) as HTMLElement;
+  const givePoints = (points: Record<string, number>) =>
+    act(() =>
+      useGameStore.setState((state) => ({
+        players: [
+          {
+            ...state.players[0],
+            goals: { ...state.players[0].goals, ...points },
+          },
+        ],
+      })),
+    );
+  const patchPlayer = (patch: Record<string, unknown>) =>
+    act(() =>
+      useGameStore.setState((state) => ({
+        players: [{ ...state.players[0], ...patch }],
+      })),
+    );
+
+  it('shows each Goal against its target and no met mark before it is reached', () => {
+    givePoints({ wealth: 50, happiness: 50, education: 50, career: 50 });
+    render(<Home />);
+    expect(row('wealth')).toHaveTextContent(
+      `Wealth$${STARTING_MONEY} / $2,000`,
+    );
+    expect(row('happiness')).toHaveTextContent('Happiness0 / 13');
+    expect(row('education')).toHaveTextContent('Education0 / 1');
+    expect(row('career')).toHaveTextContent('Career0 / 2');
+    expect(within(progress()).queryByText('(met)')).toBeNull();
+  });
+
+  it('shows a Goal with 0 points as No Goal, met', () => {
+    givePoints({ wealth: 0, happiness: 50, education: 50, career: 50 });
+    render(<Home />);
+    expect(row('wealth')).toHaveTextContent('WealthNo Goal(met)');
+    expect(row('happiness')).not.toHaveTextContent('(met)');
+  });
+
+  it('raises Happiness when a household good is bought, and marks it met at the target', async () => {
+    givePoints({ happiness: 4 }); // a target of 1
+    patchPlayer({ locationId: 'z-mart', money: 2000 });
+    render(<Home />);
+    expect(row('happiness')).toHaveTextContent('0 / 1');
+    expect(row('happiness')).not.toHaveTextContent('(met)');
+    await userEvent.click(tileButton('Z-Mart'));
+    const store = screen.getByRole('dialog', { name: 'Z-Mart' });
+    await userEvent.click(
+      within(store).getAllByRole('button', { name: /^Buy .*\(\$\d+\)/ })[0],
+    );
+    expect(player().ownedGoods).toHaveLength(1);
+    expect(row('happiness')).not.toHaveTextContent('0 / 1');
+    expect(row('happiness')).toHaveTextContent('(met)');
+  });
+
+  it('updates Wealth when cash changes', () => {
+    givePoints({ wealth: 50 });
+    render(<Home />);
+    patchPlayer({ money: 1240 });
+    expect(row('wealth')).toHaveTextContent('$1,240 / $2,000');
+    expect(row('wealth')).not.toHaveTextContent('(met)');
+    patchPlayer({ money: 2000 });
+    expect(row('wealth')).toHaveTextContent('$2,000 / $2,000(met)');
+  });
+
+  it('raises Education when a course is completed', () => {
+    const course = defaultPack.education.courses[0];
+    givePoints({ education: 5 });
+    patchPlayer({
+      locationId: defaultPack.education.locationId,
+      money: 100000,
+    });
+    render(<Home />);
+    expect(row('education')).toHaveTextContent('0 / 1');
+    act(() => useGameStore.getState().enrollCourse(course.id));
+    for (let i = 0; i < course.classesRequired; i++) {
+      patchPlayer({ timeRemaining: 12 });
+      act(() => useGameStore.getState().attendClass());
+    }
+    expect(player().educationLevel).toBe(1);
+    expect(row('education')).toHaveTextContent('1 / 1(met)');
+  });
+
+  it('raises the Career rung when the Player is hired', async () => {
+    givePoints({ career: 25 }); // a target of rung 1
+    render(<Home />);
+    expect(row('career')).toHaveTextContent('0 / 1');
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(tileButton('Employment Office'));
+    await userEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Employment Office' }),
+      ).getByRole('button', { name: 'Take the Cook job at Monolith Burger' }),
+    );
+    expect(row('career')).toHaveTextContent('1 / 1(met)');
+  });
+});

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { HUD } from '@/components/game/HUD';
+import { GoalProgress } from '@/components/game/GoalProgress';
 import { StoreHydrator } from '@/components/game/StoreHydrator';
 import { Board } from '@/components/game/Board';
 import { GoalSetup } from '@/components/game/GoalSetup';
@@ -58,6 +59,7 @@ export default function Home() {
         <>
           {/* Stats */}
           <HUD />
+          <GoalProgress />
 
           {/* Game Grid */}
           <Board />
