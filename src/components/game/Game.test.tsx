@@ -687,13 +687,13 @@ describe('clothing on screen (AC-008)', () => {
     ).toHaveTextContent('$5/hr');
     expect(
       within(office).getByRole('region', { name: 'Factory jobs' }),
-    ).toHaveTextContent('1 point (0 earned)');
+    ).toHaveTextContent('20 points (0 earned)');
     expect(office).toHaveTextContent(
       'Trade School sufficient (T-01 observed; exact minimum unknown)',
     );
     expect(office).toHaveTextContent('No job-specific tier');
     expect(office).toHaveTextContent(
-      'Locked: needs 1 point of experience in this Career',
+      'Locked: needs 20 points of experience in this Career',
     );
   });
 
