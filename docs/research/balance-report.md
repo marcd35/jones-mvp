@@ -23,7 +23,7 @@ The sensible policy was developed and tuned only on dev seeds 1001–1020, then 
 - Cash reserve: keeps back one rent payment plus a 4-Week food pack plus one set of Casual Clothes, at the current price level. Only household goods and course fees are bought from cash above the reserve.
 - Job: applies at the Employment Office for the best job it qualifies for. While its Career Goal is unmet it prefers the best-paying job at or above the target rung; if none is open to it yet, it picks the target-rung job with the smallest gap (missing education levels count far more than missing experience) and works towards that (the entry job of that Career for experience, courses for education). Otherwise it takes the best advertised wage, and changes job only for a higher advertised wage than the one it holds.
 - Education: while the Education Goal (or the chosen career plan) needs a higher level, enrolls in the next course on its path (technical unless a plan needs college) and attends classes, but only while its cash covers the reserve; otherwise it works.
-- Happiness: while the Happiness Goal is unmet, buys the in-stock, not-yet-owned household good with the lowest price per happiness point that it can afford above the reserve.
+- Happiness: while the Happiness Goal is unmet, buys the in-stock, not-yet-owned household good with the lowest price per happiness point that it can afford above the reserve. It knows the stock of each shop for the Week without walking there to look (a small advantage over a real Player); it still walks to the shop to buy.
 - Wealth: every hour not needed above is spent working its job.
 - Time: never starts a walk it cannot finish; keeps enough Time for a pending essential errand before taking another shift; ends the Week when nothing useful fits in the Time left.
 
@@ -34,27 +34,27 @@ The sensible policy was developed and tuned only on dev seeds 1001–1020, then 
 
 ## Acceptance criteria
 
-| Criterion                                                                       | Result   | Evidence                                                                                                    |
-| ------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| AC1: 100 fixed seeds per policy per profile, the same seed set everywhere       | PASS     | 4 run sets, each over seeds 1–100.                                                                          |
-| AC2: Primary profile allocates 50 points to each Goal                           | PASS     | Every primary run started with Wealth 50, Happiness 50, Education 50, Career 50 (read back from the store). |
-| AC3: Stress profile allocates Career 150, Wealth 50, Education 0, Happiness 0   | PASS     | Every stress run started with Wealth 50, Happiness 0, Education 0, Career 150 (read back from the store).   |
-| AC4: Sensible policy wins in Weeks 8–16 in at least 80% of primary runs         | **FAIL** | 0 of 100 primary runs (0%) won in Weeks 8–16; 100 won in all (100%).                                        |
-| AC5: Careless policy loses through the rent limit in every run of both profiles | PASS     | primary: 100 of 100 lost through the rent owed limit; stress: 100 of 100 lost through the rent owed limit   |
-| AC6: Rerunning a seed reproduces the same outcome                               | PASS     | Every run was played a second time from its seed and gave an identical result.                              |
+| Criterion                                                                       | Result | Evidence                                                                                                    |
+| ------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| AC1: 100 fixed seeds per policy per profile, the same seed set everywhere       | PASS   | 4 run sets, each over seeds 1–100.                                                                          |
+| AC2: Primary profile allocates 50 points to each Goal                           | PASS   | Every primary run started with Wealth 50, Happiness 50, Education 50, Career 50 (read back from the store). |
+| AC3: Stress profile allocates Career 150, Wealth 50, Education 0, Happiness 0   | PASS   | Every stress run started with Wealth 50, Happiness 0, Education 0, Career 150 (read back from the store).   |
+| AC4: Sensible policy wins in Weeks 8–16 in at least 80% of primary runs         | PASS   | 98 of 100 primary runs (98%) won in Weeks 8–16; 100 won in all (100%).                                      |
+| AC5: Careless policy loses through the rent limit in every run of both profiles | PASS   | primary: 100 of 100 lost through the rent owed limit; stress: 100 of 100 lost through the rent owed limit   |
+| AC6: Rerunning a seed reproduces the same outcome                               | PASS   | Every run was played a second time from its seed and gave an identical result.                              |
 
 The stress-profile sensible results are reported only, with no pass/fail.
 
 ## Findings
 
-- 100 of 100 sensible primary runs won before Week 8, so they fall outside the approved window.
+- 2 of 100 sensible primary runs won before Week 8, so they fall outside the approved window.
 - Stress profile (report only): the sensible policy won 100% of runs; jobs held at the end: factory-department-manager (100).
 
 ## Run sets
 
 | Policy   | Profile | Runs | Won | Lost | Timeout | Win share | Won in Weeks 8–16 | Loss reasons          |
 | -------- | ------- | ---- | --- | ---- | ------- | --------- | ----------------- | --------------------- |
-| sensible | primary | 100  | 100 | 0    | 0       | 100%      | 0 (0%)            | none                  |
+| sensible | primary | 100  | 100 | 0    | 0       | 100%      | 98 (98%)          | none                  |
 | careless | primary | 100  | 0   | 100  | 0       | 0%        | 0 (0%)            | rent owed limit (100) |
 | sensible | stress  | 100  | 100 | 0    | 0       | 100%      | 0 (0%)            | none                  |
 | careless | stress  | 100  | 0   | 100  | 0       | 0%        | 0 (0%)            | rent owed limit (100) |
@@ -63,10 +63,12 @@ The stress-profile sensible results are reported only, with no pass/fail.
 
 | Ending Week | Won | Lost | Timeout |
 | ----------- | --- | ---- | ------- |
-| 6           | 56  | 0    | 0       |
-| 7           | 44  | 0    | 0       |
+| 7           | 2   | 0    | 0       |
+| 8           | 39  | 0    | 0       |
+| 9           | 46  | 0    | 0       |
+| 10          | 13  | 0    | 0       |
 
-Jobs held at the end: blacks-assistant-manager (100).
+Jobs held at the end: blacks-butcher (43), blacks-assistant-manager (30), factory-secretary (27).
 
 ### careless / primary: Week distribution
 
@@ -80,7 +82,7 @@ Jobs held at the end: cook (100).
 
 | Ending Week | Won | Lost | Timeout |
 | ----------- | --- | ---- | ------- |
-| 2           | 100 | 0    | 0       |
+| 6           | 100 | 0    | 0       |
 
 Jobs held at the end: factory-department-manager (100).
 
@@ -96,9 +98,9 @@ Jobs held at the end: cook (100).
 
 | Policy   | Profile | Runs | Won | Lost | Timeout | Ending Weeks |
 | -------- | ------- | ---- | --- | ---- | ------- | ------------ |
-| sensible | primary | 20   | 20  | 0    | 0       | 6, 7         |
+| sensible | primary | 20   | 20  | 0    | 0       | 8, 9, 10     |
 | careless | primary | 20   | 0   | 20   | 0       | 16           |
-| sensible | stress  | 20   | 20  | 0    | 0       | 2            |
+| sensible | stress  | 20   | 20  | 0    | 0       | 6            |
 | careless | stress  | 20   | 0   | 20   | 0       | 16           |
 
 ## Every evaluation run
@@ -107,106 +109,106 @@ Final measures are at the end of the run: net worth, happiness points, education
 
 | Seed | Policy   | Profile | Outcome | Ending Week | Loss reason     | Net worth | Happiness | Education | Career rung |
 | ---- | -------- | ------- | ------- | ----------- | --------------- | --------- | --------- | --------- | ----------- |
-| 1    | sensible | primary | won     | 7           | —               | $2042     | 14        | 1         | 4           |
-| 2    | sensible | primary | won     | 6           | —               | $2050     | 13        | 1         | 4           |
-| 3    | sensible | primary | won     | 6           | —               | $2333     | 15        | 1         | 4           |
-| 4    | sensible | primary | won     | 7           | —               | $2098     | 14        | 1         | 4           |
-| 5    | sensible | primary | won     | 7           | —               | $2014     | 16        | 1         | 4           |
-| 6    | sensible | primary | won     | 6           | —               | $2131     | 13        | 1         | 4           |
-| 7    | sensible | primary | won     | 6           | —               | $2058     | 14        | 1         | 4           |
-| 8    | sensible | primary | won     | 6           | —               | $2063     | 13        | 1         | 4           |
-| 9    | sensible | primary | won     | 7           | —               | $2087     | 13        | 1         | 4           |
-| 10   | sensible | primary | won     | 6           | —               | $2071     | 14        | 1         | 4           |
-| 11   | sensible | primary | won     | 7           | —               | $2480     | 16        | 1         | 4           |
-| 12   | sensible | primary | won     | 7           | —               | $2114     | 13        | 1         | 4           |
-| 13   | sensible | primary | won     | 6           | —               | $2081     | 13        | 1         | 4           |
-| 14   | sensible | primary | won     | 6           | —               | $2317     | 14        | 1         | 4           |
-| 15   | sensible | primary | won     | 7           | —               | $2021     | 14        | 1         | 4           |
-| 16   | sensible | primary | won     | 6           | —               | $2048     | 15        | 1         | 4           |
-| 17   | sensible | primary | won     | 7           | —               | $2094     | 13        | 1         | 4           |
-| 18   | sensible | primary | won     | 7           | —               | $2030     | 13        | 1         | 4           |
-| 19   | sensible | primary | won     | 6           | —               | $2087     | 13        | 1         | 4           |
-| 20   | sensible | primary | won     | 6           | —               | $2060     | 13        | 1         | 4           |
-| 21   | sensible | primary | won     | 7           | —               | $2078     | 13        | 1         | 4           |
-| 22   | sensible | primary | won     | 6           | —               | $2001     | 14        | 1         | 4           |
-| 23   | sensible | primary | won     | 7           | —               | $2191     | 14        | 1         | 4           |
-| 24   | sensible | primary | won     | 7           | —               | $2206     | 16        | 1         | 4           |
-| 25   | sensible | primary | won     | 7           | —               | $2625     | 16        | 1         | 4           |
-| 26   | sensible | primary | won     | 6           | —               | $2104     | 14        | 1         | 4           |
-| 27   | sensible | primary | won     | 6           | —               | $2079     | 13        | 1         | 4           |
-| 28   | sensible | primary | won     | 7           | —               | $2108     | 15        | 1         | 4           |
-| 29   | sensible | primary | won     | 7           | —               | $2056     | 14        | 1         | 4           |
-| 30   | sensible | primary | won     | 7           | —               | $2433     | 16        | 1         | 4           |
-| 31   | sensible | primary | won     | 6           | —               | $2009     | 13        | 1         | 4           |
-| 32   | sensible | primary | won     | 7           | —               | $2010     | 14        | 1         | 4           |
-| 33   | sensible | primary | won     | 7           | —               | $2024     | 13        | 1         | 4           |
-| 34   | sensible | primary | won     | 7           | —               | $2058     | 14        | 1         | 4           |
-| 35   | sensible | primary | won     | 6           | —               | $2039     | 13        | 1         | 4           |
-| 36   | sensible | primary | won     | 7           | —               | $2081     | 13        | 1         | 4           |
-| 37   | sensible | primary | won     | 6           | —               | $2102     | 13        | 1         | 4           |
-| 38   | sensible | primary | won     | 7           | —               | $2089     | 15        | 1         | 4           |
-| 39   | sensible | primary | won     | 6           | —               | $2091     | 14        | 1         | 4           |
-| 40   | sensible | primary | won     | 7           | —               | $2026     | 16        | 1         | 4           |
-| 41   | sensible | primary | won     | 6           | —               | $2050     | 13        | 1         | 4           |
-| 42   | sensible | primary | won     | 7           | —               | $2064     | 14        | 1         | 4           |
-| 43   | sensible | primary | won     | 6           | —               | $2056     | 15        | 1         | 4           |
-| 44   | sensible | primary | won     | 6           | —               | $2032     | 13        | 1         | 4           |
-| 45   | sensible | primary | won     | 6           | —               | $2168     | 13        | 1         | 4           |
-| 46   | sensible | primary | won     | 6           | —               | $2066     | 15        | 1         | 4           |
-| 47   | sensible | primary | won     | 6           | —               | $2087     | 14        | 1         | 4           |
-| 48   | sensible | primary | won     | 6           | —               | $2167     | 13        | 1         | 4           |
-| 49   | sensible | primary | won     | 7           | —               | $2156     | 13        | 1         | 4           |
-| 50   | sensible | primary | won     | 6           | —               | $2072     | 13        | 1         | 4           |
-| 51   | sensible | primary | won     | 6           | —               | $2013     | 13        | 1         | 4           |
-| 52   | sensible | primary | won     | 7           | —               | $2017     | 16        | 1         | 4           |
-| 53   | sensible | primary | won     | 6           | —               | $2035     | 13        | 1         | 4           |
-| 54   | sensible | primary | won     | 6           | —               | $2043     | 13        | 1         | 4           |
-| 55   | sensible | primary | won     | 7           | —               | $2107     | 13        | 1         | 4           |
-| 56   | sensible | primary | won     | 6           | —               | $2029     | 14        | 1         | 4           |
-| 57   | sensible | primary | won     | 6           | —               | $2037     | 13        | 1         | 4           |
-| 58   | sensible | primary | won     | 6           | —               | $2027     | 13        | 1         | 4           |
-| 59   | sensible | primary | won     | 6           | —               | $2054     | 14        | 1         | 4           |
-| 60   | sensible | primary | won     | 7           | —               | $2055     | 16        | 1         | 4           |
-| 61   | sensible | primary | won     | 6           | —               | $2032     | 13        | 1         | 4           |
-| 62   | sensible | primary | won     | 6           | —               | $2001     | 13        | 1         | 4           |
-| 63   | sensible | primary | won     | 7           | —               | $2105     | 13        | 1         | 4           |
-| 64   | sensible | primary | won     | 6           | —               | $2061     | 13        | 1         | 4           |
-| 65   | sensible | primary | won     | 7           | —               | $2087     | 13        | 1         | 4           |
-| 66   | sensible | primary | won     | 7           | —               | $2147     | 13        | 1         | 4           |
-| 67   | sensible | primary | won     | 7           | —               | $2351     | 16        | 1         | 4           |
-| 68   | sensible | primary | won     | 6           | —               | $2135     | 13        | 1         | 4           |
-| 69   | sensible | primary | won     | 6           | —               | $2088     | 14        | 1         | 4           |
-| 70   | sensible | primary | won     | 7           | —               | $2105     | 13        | 1         | 4           |
-| 71   | sensible | primary | won     | 6           | —               | $2172     | 15        | 1         | 4           |
-| 72   | sensible | primary | won     | 7           | —               | $2108     | 13        | 1         | 4           |
-| 73   | sensible | primary | won     | 6           | —               | $2051     | 13        | 1         | 4           |
-| 74   | sensible | primary | won     | 7           | —               | $2230     | 15        | 1         | 4           |
-| 75   | sensible | primary | won     | 6           | —               | $2085     | 14        | 1         | 4           |
-| 76   | sensible | primary | won     | 6           | —               | $2139     | 13        | 1         | 4           |
-| 77   | sensible | primary | won     | 6           | —               | $2132     | 13        | 1         | 4           |
-| 78   | sensible | primary | won     | 7           | —               | $2218     | 16        | 1         | 4           |
-| 79   | sensible | primary | won     | 7           | —               | $2110     | 15        | 1         | 4           |
-| 80   | sensible | primary | won     | 7           | —               | $2028     | 14        | 1         | 4           |
-| 81   | sensible | primary | won     | 6           | —               | $2202     | 13        | 1         | 4           |
-| 82   | sensible | primary | won     | 6           | —               | $2060     | 15        | 1         | 4           |
-| 83   | sensible | primary | won     | 7           | —               | $2111     | 16        | 1         | 4           |
-| 84   | sensible | primary | won     | 6           | —               | $2099     | 13        | 1         | 4           |
-| 85   | sensible | primary | won     | 6           | —               | $2017     | 13        | 1         | 4           |
-| 86   | sensible | primary | won     | 6           | —               | $2099     | 13        | 1         | 4           |
-| 87   | sensible | primary | won     | 6           | —               | $2011     | 13        | 1         | 4           |
-| 88   | sensible | primary | won     | 6           | —               | $2107     | 14        | 1         | 4           |
-| 89   | sensible | primary | won     | 6           | —               | $2093     | 14        | 1         | 4           |
-| 90   | sensible | primary | won     | 6           | —               | $2069     | 13        | 1         | 4           |
-| 91   | sensible | primary | won     | 7           | —               | $2076     | 13        | 1         | 4           |
-| 92   | sensible | primary | won     | 6           | —               | $2031     | 14        | 1         | 4           |
-| 93   | sensible | primary | won     | 7           | —               | $2247     | 16        | 1         | 4           |
-| 94   | sensible | primary | won     | 6           | —               | $2032     | 13        | 1         | 4           |
-| 95   | sensible | primary | won     | 7           | —               | $2118     | 13        | 1         | 4           |
-| 96   | sensible | primary | won     | 6           | —               | $2033     | 13        | 1         | 4           |
-| 97   | sensible | primary | won     | 6           | —               | $2053     | 14        | 1         | 4           |
-| 98   | sensible | primary | won     | 7           | —               | $2018     | 15        | 1         | 4           |
-| 99   | sensible | primary | won     | 7           | —               | $2064     | 13        | 1         | 4           |
-| 100  | sensible | primary | won     | 7           | —               | $2279     | 16        | 1         | 4           |
+| 1    | sensible | primary | won     | 8           | —               | $2056     | 16        | 1         | 3           |
+| 2    | sensible | primary | won     | 9           | —               | $2033     | 14        | 1         | 4           |
+| 3    | sensible | primary | won     | 8           | —               | $2060     | 13        | 1         | 3           |
+| 4    | sensible | primary | won     | 8           | —               | $2155     | 13        | 1         | 3           |
+| 5    | sensible | primary | won     | 10          | —               | $2391     | 16        | 1         | 4           |
+| 6    | sensible | primary | won     | 10          | —               | $2111     | 16        | 1         | 3           |
+| 7    | sensible | primary | won     | 8           | —               | $2063     | 13        | 1         | 3           |
+| 8    | sensible | primary | won     | 9           | —               | $2010     | 14        | 1         | 4           |
+| 9    | sensible | primary | won     | 9           | —               | $2318     | 16        | 1         | 4           |
+| 10   | sensible | primary | won     | 9           | —               | $2023     | 15        | 1         | 4           |
+| 11   | sensible | primary | won     | 8           | —               | $2007     | 13        | 1         | 3           |
+| 12   | sensible | primary | won     | 9           | —               | $2334     | 16        | 1         | 3           |
+| 13   | sensible | primary | won     | 9           | —               | $2018     | 13        | 1         | 4           |
+| 14   | sensible | primary | won     | 9           | —               | $2032     | 14        | 1         | 3           |
+| 15   | sensible | primary | won     | 9           | —               | $2095     | 16        | 1         | 4           |
+| 16   | sensible | primary | won     | 9           | —               | $2022     | 14        | 1         | 3           |
+| 17   | sensible | primary | won     | 8           | —               | $2001     | 13        | 1         | 3           |
+| 18   | sensible | primary | won     | 8           | —               | $2007     | 14        | 1         | 3           |
+| 19   | sensible | primary | won     | 8           | —               | $2035     | 13        | 1         | 3           |
+| 20   | sensible | primary | won     | 8           | —               | $2152     | 14        | 1         | 3           |
+| 21   | sensible | primary | won     | 10          | —               | $2309     | 16        | 1         | 3           |
+| 22   | sensible | primary | won     | 8           | —               | $2046     | 13        | 1         | 3           |
+| 23   | sensible | primary | won     | 9           | —               | $2105     | 13        | 1         | 4           |
+| 24   | sensible | primary | won     | 9           | —               | $2100     | 16        | 1         | 3           |
+| 25   | sensible | primary | won     | 9           | —               | $2005     | 14        | 1         | 4           |
+| 26   | sensible | primary | won     | 9           | —               | $2030     | 15        | 1         | 3           |
+| 27   | sensible | primary | won     | 9           | —               | $2030     | 13        | 1         | 3           |
+| 28   | sensible | primary | won     | 10          | —               | $2488     | 16        | 1         | 3           |
+| 29   | sensible | primary | won     | 8           | —               | $2086     | 14        | 1         | 3           |
+| 30   | sensible | primary | won     | 8           | —               | $2012     | 14        | 1         | 3           |
+| 31   | sensible | primary | won     | 8           | —               | $2122     | 13        | 1         | 3           |
+| 32   | sensible | primary | won     | 9           | —               | $2050     | 16        | 1         | 3           |
+| 33   | sensible | primary | won     | 8           | —               | $2224     | 14        | 1         | 3           |
+| 34   | sensible | primary | won     | 10          | —               | $2031     | 13        | 1         | 3           |
+| 35   | sensible | primary | won     | 9           | —               | $2122     | 13        | 1         | 4           |
+| 36   | sensible | primary | won     | 8           | —               | $2027     | 13        | 1         | 3           |
+| 37   | sensible | primary | won     | 9           | —               | $2068     | 13        | 1         | 3           |
+| 38   | sensible | primary | won     | 9           | —               | $2080     | 14        | 1         | 3           |
+| 39   | sensible | primary | won     | 8           | —               | $2060     | 13        | 1         | 3           |
+| 40   | sensible | primary | won     | 9           | —               | $2049     | 14        | 1         | 3           |
+| 41   | sensible | primary | won     | 9           | —               | $2483     | 16        | 1         | 4           |
+| 42   | sensible | primary | won     | 8           | —               | $2084     | 14        | 1         | 3           |
+| 43   | sensible | primary | won     | 8           | —               | $2041     | 13        | 1         | 3           |
+| 44   | sensible | primary | won     | 8           | —               | $2080     | 13        | 1         | 3           |
+| 45   | sensible | primary | won     | 9           | —               | $2118     | 15        | 1         | 4           |
+| 46   | sensible | primary | won     | 9           | —               | $2029     | 14        | 1         | 3           |
+| 47   | sensible | primary | won     | 9           | —               | $2069     | 14        | 1         | 3           |
+| 48   | sensible | primary | won     | 8           | —               | $2023     | 13        | 1         | 3           |
+| 49   | sensible | primary | won     | 9           | —               | $2065     | 13        | 1         | 4           |
+| 50   | sensible | primary | won     | 8           | —               | $2075     | 13        | 1         | 3           |
+| 51   | sensible | primary | won     | 10          | —               | $2251     | 16        | 1         | 4           |
+| 52   | sensible | primary | won     | 8           | —               | $2029     | 13        | 1         | 3           |
+| 53   | sensible | primary | won     | 8           | —               | $2048     | 14        | 1         | 3           |
+| 54   | sensible | primary | won     | 9           | —               | $2366     | 16        | 1         | 4           |
+| 55   | sensible | primary | won     | 8           | —               | $2023     | 13        | 1         | 3           |
+| 56   | sensible | primary | won     | 8           | —               | $2078     | 13        | 1         | 3           |
+| 57   | sensible | primary | won     | 9           | —               | $2147     | 14        | 1         | 4           |
+| 58   | sensible | primary | won     | 9           | —               | $2009     | 13        | 1         | 3           |
+| 59   | sensible | primary | won     | 9           | —               | $2005     | 13        | 1         | 3           |
+| 60   | sensible | primary | won     | 8           | —               | $2086     | 14        | 1         | 3           |
+| 61   | sensible | primary | won     | 8           | —               | $2063     | 13        | 1         | 3           |
+| 62   | sensible | primary | won     | 9           | —               | $2042     | 13        | 1         | 4           |
+| 63   | sensible | primary | won     | 9           | —               | $2001     | 13        | 1         | 3           |
+| 64   | sensible | primary | won     | 9           | —               | $2007     | 14        | 1         | 4           |
+| 65   | sensible | primary | won     | 8           | —               | $2047     | 15        | 1         | 3           |
+| 66   | sensible | primary | won     | 8           | —               | $2001     | 13        | 1         | 3           |
+| 67   | sensible | primary | won     | 9           | —               | $2160     | 16        | 1         | 4           |
+| 68   | sensible | primary | won     | 9           | —               | $2119     | 13        | 1         | 4           |
+| 69   | sensible | primary | won     | 9           | —               | $2014     | 16        | 1         | 3           |
+| 70   | sensible | primary | won     | 10          | —               | $2218     | 16        | 1         | 4           |
+| 71   | sensible | primary | won     | 9           | —               | $2246     | 16        | 1         | 4           |
+| 72   | sensible | primary | won     | 10          | —               | $2061     | 16        | 1         | 4           |
+| 73   | sensible | primary | won     | 9           | —               | $2039     | 13        | 1         | 4           |
+| 74   | sensible | primary | won     | 10          | —               | $2015     | 13        | 1         | 3           |
+| 75   | sensible | primary | won     | 8           | —               | $2043     | 14        | 1         | 3           |
+| 76   | sensible | primary | won     | 9           | —               | $2114     | 13        | 1         | 4           |
+| 77   | sensible | primary | won     | 10          | —               | $2028     | 14        | 1         | 4           |
+| 78   | sensible | primary | won     | 9           | —               | $2110     | 14        | 1         | 4           |
+| 79   | sensible | primary | won     | 9           | —               | $2076     | 13        | 1         | 3           |
+| 80   | sensible | primary | won     | 10          | —               | $2013     | 16        | 1         | 3           |
+| 81   | sensible | primary | won     | 9           | —               | $2177     | 16        | 1         | 4           |
+| 82   | sensible | primary | won     | 9           | —               | $2138     | 13        | 1         | 4           |
+| 83   | sensible | primary | won     | 8           | —               | $2024     | 14        | 1         | 3           |
+| 84   | sensible | primary | won     | 9           | —               | $2217     | 16        | 1         | 3           |
+| 85   | sensible | primary | won     | 9           | —               | $2079     | 13        | 1         | 3           |
+| 86   | sensible | primary | won     | 10          | —               | $2024     | 16        | 1         | 3           |
+| 87   | sensible | primary | won     | 8           | —               | $2085     | 14        | 1         | 3           |
+| 88   | sensible | primary | won     | 8           | —               | $2122     | 14        | 1         | 3           |
+| 89   | sensible | primary | won     | 8           | —               | $2106     | 13        | 1         | 3           |
+| 90   | sensible | primary | won     | 9           | —               | $2371     | 16        | 1         | 3           |
+| 91   | sensible | primary | won     | 8           | —               | $2042     | 14        | 1         | 3           |
+| 92   | sensible | primary | won     | 8           | —               | $2050     | 15        | 1         | 3           |
+| 93   | sensible | primary | won     | 9           | —               | $2003     | 14        | 1         | 3           |
+| 94   | sensible | primary | won     | 9           | —               | $2014     | 16        | 1         | 4           |
+| 95   | sensible | primary | won     | 7           | —               | $2014     | 14        | 1         | 3           |
+| 96   | sensible | primary | won     | 8           | —               | $2023     | 13        | 1         | 3           |
+| 97   | sensible | primary | won     | 8           | —               | $2030     | 13        | 1         | 3           |
+| 98   | sensible | primary | won     | 8           | —               | $2048     | 13        | 1         | 3           |
+| 99   | sensible | primary | won     | 7           | —               | $2102     | 14        | 1         | 3           |
+| 100  | sensible | primary | won     | 10          | —               | $2063     | 13        | 1         | 3           |
 | 1    | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 2    | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 3    | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
@@ -307,106 +309,106 @@ Final measures are at the end of the run: net worth, happiness points, education
 | 98   | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 99   | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 100  | careless | primary | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
-| 1    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 2    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 3    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 4    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 5    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 6    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 7    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 8    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 9    | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 10   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 11   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 12   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 13   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 14   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 15   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 16   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 17   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 18   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 19   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 20   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 21   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 22   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 23   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 24   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 25   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 26   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 27   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 28   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 29   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 30   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 31   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 32   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 33   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 34   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 35   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 36   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 37   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 38   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 39   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 40   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 41   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 42   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 43   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 44   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 45   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 46   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 47   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 48   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 49   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 50   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 51   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 52   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 53   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 54   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 55   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 56   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 57   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 58   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 59   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 60   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 61   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 62   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 63   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 64   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 65   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 66   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 67   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 68   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 69   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 70   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 71   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 72   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 73   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 74   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 75   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 76   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 77   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 78   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 79   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 80   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 81   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 82   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 83   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 84   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 85   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 86   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 87   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 88   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 89   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 90   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 91   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 92   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 93   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 94   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 95   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 96   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 97   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 98   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 99   | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
-| 100  | sensible | stress  | won     | 2           | —               | $2169     | 0         | 0         | 7           |
+| 1    | sensible | stress  | won     | 6           | —               | $2167     | 0         | 0         | 7           |
+| 2    | sensible | stress  | won     | 6           | —               | $2045     | 0         | 0         | 7           |
+| 3    | sensible | stress  | won     | 6           | —               | $2120     | 0         | 0         | 7           |
+| 4    | sensible | stress  | won     | 6           | —               | $2065     | 0         | 0         | 7           |
+| 5    | sensible | stress  | won     | 6           | —               | $2066     | 0         | 0         | 7           |
+| 6    | sensible | stress  | won     | 6           | —               | $2032     | 0         | 0         | 7           |
+| 7    | sensible | stress  | won     | 6           | —               | $2179     | 0         | 0         | 7           |
+| 8    | sensible | stress  | won     | 6           | —               | $2043     | 0         | 0         | 7           |
+| 9    | sensible | stress  | won     | 6           | —               | $2108     | 0         | 0         | 7           |
+| 10   | sensible | stress  | won     | 6           | —               | $2063     | 0         | 0         | 7           |
+| 11   | sensible | stress  | won     | 6           | —               | $2002     | 0         | 0         | 7           |
+| 12   | sensible | stress  | won     | 6           | —               | $2067     | 0         | 0         | 7           |
+| 13   | sensible | stress  | won     | 6           | —               | $2046     | 0         | 0         | 7           |
+| 14   | sensible | stress  | won     | 6           | —               | $2078     | 0         | 0         | 7           |
+| 15   | sensible | stress  | won     | 6           | —               | $2021     | 0         | 0         | 7           |
+| 16   | sensible | stress  | won     | 6           | —               | $2169     | 0         | 0         | 7           |
+| 17   | sensible | stress  | won     | 6           | —               | $2007     | 0         | 0         | 7           |
+| 18   | sensible | stress  | won     | 6           | —               | $2017     | 0         | 0         | 7           |
+| 19   | sensible | stress  | won     | 6           | —               | $2146     | 0         | 0         | 7           |
+| 20   | sensible | stress  | won     | 6           | —               | $2175     | 0         | 0         | 7           |
+| 21   | sensible | stress  | won     | 6           | —               | $2005     | 0         | 0         | 7           |
+| 22   | sensible | stress  | won     | 6           | —               | $2084     | 0         | 0         | 7           |
+| 23   | sensible | stress  | won     | 6           | —               | $2015     | 0         | 0         | 7           |
+| 24   | sensible | stress  | won     | 6           | —               | $2004     | 0         | 0         | 7           |
+| 25   | sensible | stress  | won     | 6           | —               | $2050     | 0         | 0         | 7           |
+| 26   | sensible | stress  | won     | 6           | —               | $2119     | 0         | 0         | 7           |
+| 27   | sensible | stress  | won     | 6           | —               | $2046     | 0         | 0         | 7           |
+| 28   | sensible | stress  | won     | 6           | —               | $2148     | 0         | 0         | 7           |
+| 29   | sensible | stress  | won     | 6           | —               | $2171     | 0         | 0         | 7           |
+| 30   | sensible | stress  | won     | 6           | —               | $2044     | 0         | 0         | 7           |
+| 31   | sensible | stress  | won     | 6           | —               | $2100     | 0         | 0         | 7           |
+| 32   | sensible | stress  | won     | 6           | —               | $2146     | 0         | 0         | 7           |
+| 33   | sensible | stress  | won     | 6           | —               | $2017     | 0         | 0         | 7           |
+| 34   | sensible | stress  | won     | 6           | —               | $2123     | 0         | 0         | 7           |
+| 35   | sensible | stress  | won     | 6           | —               | $2060     | 0         | 0         | 7           |
+| 36   | sensible | stress  | won     | 6           | —               | $2040     | 0         | 0         | 7           |
+| 37   | sensible | stress  | won     | 6           | —               | $2112     | 0         | 0         | 7           |
+| 38   | sensible | stress  | won     | 6           | —               | $2182     | 0         | 0         | 7           |
+| 39   | sensible | stress  | won     | 6           | —               | $2015     | 0         | 0         | 7           |
+| 40   | sensible | stress  | won     | 6           | —               | $2016     | 0         | 0         | 7           |
+| 41   | sensible | stress  | won     | 6           | —               | $2139     | 0         | 0         | 7           |
+| 42   | sensible | stress  | won     | 6           | —               | $2182     | 0         | 0         | 7           |
+| 43   | sensible | stress  | won     | 6           | —               | $2134     | 0         | 0         | 7           |
+| 44   | sensible | stress  | won     | 6           | —               | $2113     | 0         | 0         | 7           |
+| 45   | sensible | stress  | won     | 6           | —               | $2057     | 0         | 0         | 7           |
+| 46   | sensible | stress  | won     | 6           | —               | $2101     | 0         | 0         | 7           |
+| 47   | sensible | stress  | won     | 6           | —               | $2047     | 0         | 0         | 7           |
+| 48   | sensible | stress  | won     | 6           | —               | $2119     | 0         | 0         | 7           |
+| 49   | sensible | stress  | won     | 6           | —               | $2061     | 0         | 0         | 7           |
+| 50   | sensible | stress  | won     | 6           | —               | $2133     | 0         | 0         | 7           |
+| 51   | sensible | stress  | won     | 6           | —               | $2003     | 0         | 0         | 7           |
+| 52   | sensible | stress  | won     | 6           | —               | $2088     | 0         | 0         | 7           |
+| 53   | sensible | stress  | won     | 6           | —               | $2015     | 0         | 0         | 7           |
+| 54   | sensible | stress  | won     | 6           | —               | $2152     | 0         | 0         | 7           |
+| 55   | sensible | stress  | won     | 6           | —               | $2139     | 0         | 0         | 7           |
+| 56   | sensible | stress  | won     | 6           | —               | $2016     | 0         | 0         | 7           |
+| 57   | sensible | stress  | won     | 6           | —               | $2044     | 0         | 0         | 7           |
+| 58   | sensible | stress  | won     | 6           | —               | $2114     | 0         | 0         | 7           |
+| 59   | sensible | stress  | won     | 6           | —               | $2146     | 0         | 0         | 7           |
+| 60   | sensible | stress  | won     | 6           | —               | $2160     | 0         | 0         | 7           |
+| 61   | sensible | stress  | won     | 6           | —               | $2160     | 0         | 0         | 7           |
+| 62   | sensible | stress  | won     | 6           | —               | $2118     | 0         | 0         | 7           |
+| 63   | sensible | stress  | won     | 6           | —               | $2165     | 0         | 0         | 7           |
+| 64   | sensible | stress  | won     | 6           | —               | $2035     | 0         | 0         | 7           |
+| 65   | sensible | stress  | won     | 6           | —               | $2007     | 0         | 0         | 7           |
+| 66   | sensible | stress  | won     | 6           | —               | $2024     | 0         | 0         | 7           |
+| 67   | sensible | stress  | won     | 6           | —               | $2178     | 0         | 0         | 7           |
+| 68   | sensible | stress  | won     | 6           | —               | $2071     | 0         | 0         | 7           |
+| 69   | sensible | stress  | won     | 6           | —               | $2085     | 0         | 0         | 7           |
+| 70   | sensible | stress  | won     | 6           | —               | $2001     | 0         | 0         | 7           |
+| 71   | sensible | stress  | won     | 6           | —               | $2096     | 0         | 0         | 7           |
+| 72   | sensible | stress  | won     | 6           | —               | $2150     | 0         | 0         | 7           |
+| 73   | sensible | stress  | won     | 6           | —               | $2109     | 0         | 0         | 7           |
+| 74   | sensible | stress  | won     | 6           | —               | $2008     | 0         | 0         | 7           |
+| 75   | sensible | stress  | won     | 6           | —               | $2028     | 0         | 0         | 7           |
+| 76   | sensible | stress  | won     | 6           | —               | $2071     | 0         | 0         | 7           |
+| 77   | sensible | stress  | won     | 6           | —               | $2012     | 0         | 0         | 7           |
+| 78   | sensible | stress  | won     | 6           | —               | $2182     | 0         | 0         | 7           |
+| 79   | sensible | stress  | won     | 6           | —               | $2005     | 0         | 0         | 7           |
+| 80   | sensible | stress  | won     | 6           | —               | $2083     | 0         | 0         | 7           |
+| 81   | sensible | stress  | won     | 6           | —               | $2114     | 0         | 0         | 7           |
+| 82   | sensible | stress  | won     | 6           | —               | $2119     | 0         | 0         | 7           |
+| 83   | sensible | stress  | won     | 6           | —               | $2050     | 0         | 0         | 7           |
+| 84   | sensible | stress  | won     | 6           | —               | $2029     | 0         | 0         | 7           |
+| 85   | sensible | stress  | won     | 6           | —               | $2190     | 0         | 0         | 7           |
+| 86   | sensible | stress  | won     | 6           | —               | $2207     | 0         | 0         | 7           |
+| 87   | sensible | stress  | won     | 6           | —               | $2121     | 0         | 0         | 7           |
+| 88   | sensible | stress  | won     | 6           | —               | $2115     | 0         | 0         | 7           |
+| 89   | sensible | stress  | won     | 6           | —               | $2025     | 0         | 0         | 7           |
+| 90   | sensible | stress  | won     | 6           | —               | $2190     | 0         | 0         | 7           |
+| 91   | sensible | stress  | won     | 6           | —               | $2025     | 0         | 0         | 7           |
+| 92   | sensible | stress  | won     | 6           | —               | $2024     | 0         | 0         | 7           |
+| 93   | sensible | stress  | won     | 6           | —               | $2032     | 0         | 0         | 7           |
+| 94   | sensible | stress  | won     | 6           | —               | $2026     | 0         | 0         | 7           |
+| 95   | sensible | stress  | won     | 6           | —               | $2087     | 0         | 0         | 7           |
+| 96   | sensible | stress  | won     | 6           | —               | $2116     | 0         | 0         | 7           |
+| 97   | sensible | stress  | won     | 6           | —               | $2003     | 0         | 0         | 7           |
+| 98   | sensible | stress  | won     | 6           | —               | $2005     | 0         | 0         | 7           |
+| 99   | sensible | stress  | won     | 6           | —               | $2113     | 0         | 0         | 7           |
+| 100  | sensible | stress  | won     | 6           | —               | $2186     | 0         | 0         | 7           |
 | 1    | careless | stress  | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 2    | careless | stress  | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
 | 3    | careless | stress  | lost    | 16          | rent owed limit | $-76      | 0         | 0         | 1           |
