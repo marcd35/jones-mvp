@@ -11,6 +11,7 @@ import {
 } from '@/lib/household-goods';
 import type { DataPack, GameState, Player } from '@/types';
 import { MAX_TIME } from '@/lib/constants';
+import { goalTarget } from '@/lib/goals';
 
 const HOME = defaultPack.homeLocationId;
 const ENTRY_JOB = defaultPack.jobs[0];
@@ -201,6 +202,7 @@ const inventedPack: DataPack = {
       wage: 10,
       locationId: 'mine',
       careerId: 'mine',
+      rung: 1,
       educationRequired: 0,
       educationLabel: 'None',
       experienceRequired: 0,
@@ -246,7 +248,7 @@ const inventedPack: DataPack = {
       id: 'wealth',
       label: 'Riches',
       defaultPoints: 30,
-      perPoint: 2,
+      target: { kind: 'per-point', amount: 2 },
       prefix: '',
       suffix: ' coins',
     },
@@ -254,7 +256,7 @@ const inventedPack: DataPack = {
       id: 'happiness',
       label: 'Joy',
       defaultPoints: 20,
-      perPoint: 1,
+      target: { kind: 'per-point', amount: 1 },
       prefix: '',
       suffix: '',
     },
@@ -262,7 +264,7 @@ const inventedPack: DataPack = {
       id: 'education',
       label: 'Lore',
       defaultPoints: 20,
-      perPoint: 1,
+      target: { kind: 'per-point', amount: 1 },
       prefix: '',
       suffix: '',
     },
@@ -270,7 +272,7 @@ const inventedPack: DataPack = {
       id: 'career',
       label: 'Rank',
       defaultPoints: 20,
-      perPoint: 1,
+      target: { kind: 'per-point', amount: 1 },
       prefix: '',
       suffix: '',
     },
@@ -517,6 +519,15 @@ describe('hire', () => {
     expect(player().timeRemaining).toBe(MAX_TIME);
     expect(player().money).toBe(STARTING_MONEY);
     expect(store().lastEvent).toMatch(/Hired as Cook/);
+  });
+
+  it('records the highest rung ever held, kept after moving to a lower rung', () => {
+    expect(player().highestRung).toBe(0);
+    store().hire('monolith-clerk'); // Rung 2
+    expect(player().highestRung).toBe(2);
+    store().hire('z-mart-clerk'); // Rung 1 of another Career
+    expect(player().jobId).toBe('z-mart-clerk');
+    expect(player().highestRung).toBe(2);
   });
 
   it('refuses away from an employment Location', () => {
@@ -1165,7 +1176,7 @@ describe('winning and losing (AC-006)', () => {
     for (const g of defaultPack.goals) store().setGoalPoints(g.id, 0);
     store().setGoalPoints('wealth', points);
     store().startGame();
-    return Math.ceil(points * WEALTH.perPoint);
+    return goalTarget(WEALTH, points);
   };
   const atWork = () => setPlayer({ locationId: WORK, jobId: ENTRY_JOB.id });
   const shift = ENTRY_JOB.wage * ENTRY_JOB.shiftHours;
@@ -1226,7 +1237,7 @@ describe('winning and losing (AC-006)', () => {
     expect(player().money).toBeGreaterThanOrEqual(target);
   });
 
-  it('counts a Goal with points but no measure yet as unmet', () => {
+  it('counts a positive Goal as unmet until its measure reaches the target', () => {
     const target = wealthOnly(10);
     atWork();
     useGameStore.setState((s) => ({
@@ -1237,40 +1248,120 @@ describe('winning and losing (AC-006)', () => {
       })),
     }));
     store().work();
-    // Wealth is met, but education has points and nothing measures it yet.
+    // Wealth is met, but education needs level 1.
     expect(store().gameStatus).toBe('playing');
   });
 
-  it('needs every Goal met: a fortune does not win with points on the unbuilt Goals', () => {
+  it('needs every Goal met: a fortune alone does not win the default split', () => {
     useGameStore.setState(useGameStore.getInitialState(), true);
-    // A spread of points on all four Goals (the default is all on wealth).
-    store().setGoalPoints('wealth', 50);
-    for (const id of ['happiness', 'education', 'career'] as const) {
-      store().setGoalPoints(id, 50);
-    }
-    store().startGame();
+    store().startGame(); // 50 points on each Goal
     atWork();
     setPlayer({ money: 1_000_000 });
     store().work();
     expect(store().gameStatus).toBe('playing');
   });
 
-  it('wins a new game with the default Goal points by earning to the wealth target', () => {
+  it('starts with the approved default split of 50 points on each Goal', () => {
     useGameStore.setState(useGameStore.getInitialState(), true);
-    store().startGame(); // untouched defaults from the real pack
-    const target = Math.ceil(player().goals.wealth * WEALTH.perPoint);
-    expect(target).toBe(2000);
-    expect(player().goals).toMatchObject({
+    expect(player().goals).toEqual({
       wealth: 50,
-      happiness: 0,
-      education: 0,
-      career: 0,
+      happiness: 50,
+      education: 50,
+      career: 50,
     });
-    atWork();
-    setPlayer({ money: target - shift });
+    const targets = defaultPack.goals.map((def) => goalTarget(def, 50));
+    expect(targets).toEqual([2000, 13, 1, 2]);
+  });
+
+  it('wins the default split once net worth, happiness, education and rung all reach their targets', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    store().startGame();
+    // Happiness 13 (hot tub 10 + microwave 3), education level 1, rung 2.
+    setPlayer({
+      ownedGoods: ['hot-tub', 'microwave'],
+      educationLevel: 1,
+      educationPath: 'technical',
+      highestRung: 2,
+      locationId: WORK,
+      jobId: ENTRY_JOB.id,
+    });
+    const level = store().priceLevel;
+    const goods = scalePrice(1499, level) + scalePrice(299, level);
+    setPlayer({ money: 2000 - goods - shift - 1 });
+    store().work();
+    expect(store().gameStatus).toBe('playing'); // One dollar short
+    setPlayer({ money: 2000 - goods - shift });
     store().work();
     expect(store().gameStatus).toBe('won');
-    expect(player().money).toBe(target);
+  });
+
+  it('counts goods at the listed price and subtracts rent owed toward Wealth', () => {
+    const target = wealthOnly(10); // $400
+    atWork();
+    const tv = defaultPack.householdGoods.goods.find(
+      (g) => g.id === 'color-tv',
+    )!;
+    const tvValue = scalePrice(tv.basePrice, store().priceLevel);
+    setPlayer({ ownedGoods: [tv.id], money: target - tvValue - shift });
+    store().work();
+    expect(store().gameStatus).toBe('won');
+
+    wealthOnly(10);
+    atWork();
+    // Work garnishes rent owed; $100 is still owed after this shift.
+    const garnish = defaultPack.rent.garnishment;
+    setPlayer({
+      owedRent: 100 + garnish,
+      money: target + 99 - shift + garnish,
+    });
+    store().work();
+    expect(player().owedRent).toBe(100);
+    expect(player().money).toBe(target + 99);
+    // $499 cash less $100 owed is $399 of net worth: one dollar short.
+    expect(store().gameStatus).toBe('playing');
+  });
+
+  it('wins the Happiness Goal by buying the good that reaches it', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    for (const g of defaultPack.goals) store().setGoalPoints(g.id, 0);
+    store().setGoalPoints('happiness', 5); // A target of 2
+    store().startGame();
+    const good = householdStockForWeek(
+      defaultPack,
+      store().currentWeek,
+      store().priceSeed,
+      STORE,
+    ).find((g) => g.happinessPoints >= 2)!;
+    setPlayer({ locationId: STORE, money: 10_000 });
+    store().buyHouseholdGood(good.id);
+    expect(store().gameStatus).toBe('won');
+  });
+
+  it('wins the Career Goal on being hired at the target rung', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    for (const g of defaultPack.goals) store().setGoalPoints(g.id, 0);
+    store().setGoalPoints('career', 30); // Rung 2
+    store().startGame();
+    setPlayer({ locationId: EMPLOYMENT });
+    store().hire('cook'); // Rung 1
+    expect(store().gameStatus).toBe('playing');
+    store().hire('monolith-clerk'); // Rung 2
+    expect(store().gameStatus).toBe('won');
+  });
+
+  it('wins the Education Goal on completing the target level', () => {
+    useGameStore.setState(useGameStore.getInitialState(), true);
+    for (const g of defaultPack.goals) store().setGoalPoints(g.id, 0);
+    store().setGoalPoints('education', 5); // Level 1
+    store().startGame();
+    setPlayer({
+      locationId: UNI,
+      enrolledCourseId: TRADE_SCHOOL.id,
+      courseClassesCompleted: TRADE_SCHOOL.classesRequired - 1,
+    });
+    store().attendClass();
+    expect(player().educationLevel).toBe(1);
+    expect(store().gameStatus).toBe('won');
   });
 
   it('allows no action after a win, and a new game is still available', () => {
@@ -1447,7 +1538,7 @@ describe('persistence', () => {
 
   it('is versioned so saved games can be migrated', () => {
     store().walkTo(WORK);
-    expect(persisted().version).toBe(11);
+    expect(persisted().version).toBe(12);
   });
 
   it('migrates a version 9 job save to career experience and its previous held wage', async () => {
@@ -1465,6 +1556,22 @@ describe('persistence', () => {
       heldWage: ENTRY_JOB.wage,
       careerExperience: {},
     });
+  });
+
+  it("migrates a version 11 save: the highest rung is the current job's rung", async () => {
+    const { migrate } = useGameStore.persist.getOptions();
+    const employed = {
+      ...player(),
+      jobId: 'monolith-clerk',
+    } as Partial<Player>;
+    const unemployed = { ...player(), jobId: null } as Partial<Player>;
+    delete employed.highestRung;
+    delete unemployed.highestRung;
+    const migrated = (await migrate?.(
+      { players: [employed, unemployed], turnIndex: 0 },
+      11,
+    )) as { players: Player[] };
+    expect(migrated.players.map((p) => p.highestRung)).toEqual([2, 0]);
   });
 
   it('migrates a version 10 save with no active education-course state', async () => {
@@ -2225,6 +2332,7 @@ describe('food and clothing in an invented pack, with no rules change', () => {
         wage: 20,
         locationId: 'mine',
         careerId: 'mine',
+        rung: 2,
         educationRequired: 0,
         educationLabel: 'None',
         experienceRequired: 0,

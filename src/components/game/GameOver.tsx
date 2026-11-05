@@ -12,6 +12,7 @@ export function GameOver() {
   const resetGame = useGameStore((s) => s.resetGame);
   const player = useGameStore((s) => s.players[s.turnIndex]);
   const weeksPlayed = useGameStore((s) => s.currentWeek);
+  const priceLevel = useGameStore((s) => s.priceLevel);
 
   if (gameStatus !== 'won' && gameStatus !== 'lost') return null;
 
@@ -59,7 +60,9 @@ export function GameOver() {
                   <span>{def.label}</span>
                   <span className="text-slate-300">
                     {points === 0 ? 'No Goal' : goalTargetText(def, points)}{' '}
-                    {isGoalMet(def, player) ? '(met)' : '(not met)'}
+                    {isGoalMet(def, player, { pack: defaultPack, priceLevel })
+                      ? '(met)'
+                      : '(not met)'}
                   </span>
                 </li>
               );
