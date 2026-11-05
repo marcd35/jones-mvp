@@ -29,6 +29,19 @@ export const goalTarget = (def: GoalDef, points: number): number => {
 export const goalTargetText = (def: GoalDef, points: number): string =>
   `${def.prefix}${goalTarget(def, points).toLocaleString('en-US')}${def.suffix}`;
 
+// "5 / 13" or "$1,240 / $2,000": the measure against the target, for the HUD.
+// A symbol prefix ("$") shows on both numbers; a word prefix ("Education
+// level ") and the suffix are left to the Goal's label.
+export const goalProgressText = (
+  def: GoalDef,
+  measure: number,
+  points: number,
+): string => {
+  const unit = /\s$/.test(def.prefix) ? '' : def.prefix;
+  const show = (n: number) => `${unit}${n.toLocaleString('en-US')}`;
+  return `${show(measure)} / ${show(goalTarget(def, points))}`;
+};
+
 // Cash plus owned household goods at this Week's listed price, minus rent owed.
 export const netWorth = (
   player: Player,

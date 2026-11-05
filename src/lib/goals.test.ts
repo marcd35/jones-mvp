@@ -4,6 +4,7 @@ import { scalePrice } from './inflation';
 import {
   allGoalsMet,
   goalMeasure,
+  goalProgressText,
   goalTarget,
   goalTargetText,
   isGoalMet,
@@ -186,5 +187,14 @@ describe('meeting Goals (#44)', () => {
     expect(
       allGoalsMet(defaultPack.goals, { ...all, highestRung: 1 }, ctx()),
     ).toBe(false);
+  });
+});
+
+describe('Goal progress text (#34)', () => {
+  it('shows the measure over the target, with $ only on Wealth', () => {
+    expect(goalProgressText(goal('wealth'), 1240, 50)).toBe('$1,240 / $2,000');
+    expect(goalProgressText(goal('happiness'), 5, 50)).toBe('5 / 13');
+    expect(goalProgressText(goal('education'), 0, 50)).toBe('0 / 1');
+    expect(goalProgressText(goal('career'), 1, 50)).toBe('1 / 2');
   });
 });
