@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { defaultPack } from '@/data';
-import { goalMeasure, goalTargetText, totalGoalPoints } from '@/lib/goals';
+import { goalTargetText, totalGoalPoints } from '@/lib/goals';
 import { useGameStore } from '@/store/useGameStore';
 
 // The setup screen: the Player splits the Goal points budget across the four
@@ -43,7 +43,6 @@ export function GoalSetup() {
       <ul className="space-y-5">
         {goals.map((def) => {
           const points = player.goals[def.id];
-          const measured = goalMeasure(def.id, player) !== null;
           const id = `goal-${def.id}`;
           return (
             <li key={def.id} className="space-y-1">
@@ -77,12 +76,6 @@ export function GoalSetup() {
                   ? 'No target: this Goal counts as met.'
                   : `Target: ${goalTargetText(def, points)}`}
               </p>
-              {!measured && points > 0 && (
-                <p className="text-xs text-amber-400">
-                  Nothing measures this Goal yet, so it cannot be met until a
-                  later update. Give it 0 points to win now.
-                </p>
-              )}
             </li>
           );
         })}

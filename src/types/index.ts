@@ -48,13 +48,21 @@ export interface EducationRules {
 // Goal points spent on each Goal.
 export type GoalPoints = Record<GoalId, number>;
 
-// One row of the Goal table (UNK-005: the numbers are placeholders until the
-// balance pass, T-15).
+// How a Goal's points set its target (UNK-005, approved in T-15a #44).
+export type GoalTargetRule =
+  // Target = points x amount
+  | { kind: 'per-point'; amount: number }
+  // Target = points / pointsPerUnit, rounded up
+  | { kind: 'points-per-unit'; pointsPerUnit: number }
+  // Target of the first band whose maxPoints is at or above the points
+  | { kind: 'bands'; bands: { maxPoints: number; target: number }[] };
+
+// One row of the Goal table.
 export interface GoalDef {
   id: GoalId;
   label: string;
   defaultPoints: number; // Where the slider starts
-  perPoint: number; // The target grows by this much for each Goal point
+  target: GoalTargetRule; // The target for a positive allocation
   prefix: string; // Shown before the target, e.g. "$"
   suffix: string; // Shown after the target, e.g. " happiness"
 }
@@ -65,6 +73,7 @@ export interface Job {
   wage: number; // Hourly wage
   locationId: string;
   careerId: string; // Jobs at one employer share career experience
+  rung: number; // Position within its Career; 1 = the entry job
   educationRequired: number; // 0 = none
   educationPathRequired?: EducationPath; // Absent = either education path
   educationLabel: string; // Human-readable approved reference requirement
@@ -230,6 +239,7 @@ export interface Player {
   jobId: string | null; // Hired at an employment Location; null = no job
   heldWage: number | null; // Hourly wage fixed when hired; null when unemployed
   careerExperience: Record<string, number>; // Experience kept per Career
+  highestRung: number; // Highest job rung ever held in any Career; 0 = none
   goals: GoalPoints; // Goal points set at setup; 0 = no Goal in that category
   owedRent: number; // Rent owed and not yet paid (T-09 fills it)
   rentDueWeek: number; // The next rent due Week; extensions move it one Week

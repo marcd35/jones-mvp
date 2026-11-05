@@ -31,6 +31,15 @@ _Avoid_: Objective, victory condition
 The budget a Player splits across the four Goals at setup. More points on a Goal makes that Goal harder.
 _Avoid_: Difficulty, score
 
+**Net worth**:
+A Player's cash plus their owned household goods at today's listed price, minus rent owed.
+
+**Happiness points**:
+The data-defined value each owned household good adds.
+
+**Education level**:
+The highest education level a Player has completed.
+
 **Time**:
 The hours a Player has left to spend in the current Turn. Every action costs Time.
 _Avoid_: Energy, hours remaining
@@ -57,7 +66,10 @@ _Avoid_: Headline (for the full issue)
 
 **Career**:
 A data-defined set of jobs that shares experience points.
-_Avoid_: Job ladder (for an individual role)
+_Avoid_: Job ladder (for an individual role), Employer ladder
+
+**Rung**:
+A job's numbered position within its Career. Rung 1 is the entry job.
 
 **Career experience**:
 Points a Player earns by successfully working in a Career. Each Career retains its own points.

@@ -241,67 +241,75 @@ describe('Goals setup screen (AC-005)', () => {
   it('shows four Goal sliders over the data budget, each with its target', () => {
     render(<Home />);
     expect(screen.getAllByRole('slider')).toHaveLength(4);
-    expect(pointsLeft()).toHaveTextContent('150 left of 200');
+    expect(pointsLeft()).toHaveTextContent('0 left of 200');
     expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
       'Target: $2,000',
     );
+    expect(screen.getByTestId('goal-happiness-target')).toHaveTextContent(
+      'Target: 13 happiness',
+    );
+    expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
+      'Target: Education level 1',
+    );
+    expect(screen.getByTestId('goal-career-target')).toHaveTextContent(
+      'Target: Career rung 2',
+    );
   });
 
-  // Until T-10 to T-12 measure the other Goals, only wealth starts with
-  // points so the default setup can be won.
-  it('starts with 50 points on Wealth and none on the unmeasured Goals', () => {
+  it('starts with 50 points on each Goal', () => {
     render(<Home />);
-    expect(slider('Wealth').value).toBe('50');
+    for (const label of ['Wealth', 'Happiness', 'Education', 'Career']) {
+      expect(slider(label).value).toBe('50');
+    }
     expect(screen.getByTestId('goal-wealth-points')).toHaveTextContent(
       '50 points',
     );
-    for (const label of ['Happiness', 'Education', 'Career']) {
-      expect(slider(label).value).toBe('0');
-    }
-    for (const goal of ['happiness', 'education', 'career']) {
-      expect(screen.getByTestId(`goal-${goal}-target`)).toHaveTextContent(
-        'No target',
-      );
-    }
+    expect(screen.queryByText(/Nothing measures this Goal yet/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Start game' })).toBeEnabled();
   });
 
   it('moves the target with the points, from the data table', () => {
     render(<Home />);
+    for (const label of ['Wealth', 'Happiness', 'Education', 'Career']) {
+      set(label, 0);
+    }
+    expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
+      'No target',
+    );
     set('Wealth', 100);
     expect(screen.getByTestId('goal-wealth-target')).toHaveTextContent(
       'Target: $4,000',
     );
+    set('Wealth', 0);
+    set('Education', 100);
     expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
-      'No target',
+      'Target: Education level 1',
     );
-    expect(pointsLeft()).toHaveTextContent('100 left of 200');
+    set('Education', 105);
+    expect(screen.getByTestId('goal-education-target')).toHaveTextContent(
+      'Target: Education level 2',
+    );
+    set('Career', 30);
+    expect(screen.getByTestId('goal-career-target')).toHaveTextContent(
+      'Target: Career rung 2',
+    );
+    set('Happiness', 5);
+    expect(screen.getByTestId('goal-happiness-target')).toHaveTextContent(
+      'Target: 2 happiness',
+    );
+    expect(pointsLeft()).toHaveTextContent('60 left of 200');
   });
 
   it('never lets the sliders add up to more than the budget', () => {
     render(<Home />);
-    // Wealth holds 50 points, so Career can take at most the other 150.
+    set('Wealth', 0);
+    set('Career', 0);
+    // Happiness and Education hold 100 points, so Career can take 100.
     set('Career', 200);
-    expect(slider('Career').value).toBe('150');
+    expect(slider('Career').value).toBe('100');
     expect(pointsLeft()).toHaveTextContent('0 left of 200');
     set('Wealth', 100);
-    expect(slider('Wealth').value).toBe('50');
-  });
-
-  it('warns about a Goal that nothing measures yet', () => {
-    render(<Home />);
-    // The default puts no points on the unmeasured Goals, so no warning.
-    expect(screen.queryByText(/Nothing measures this Goal yet/)).toBeNull();
-    set('Wealth', 100);
-    set('Happiness', 50);
-    set('Career', 50);
-    expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
-      2,
-    );
-    set('Happiness', 0);
-    expect(screen.getAllByText(/Nothing measures this Goal yet/)).toHaveLength(
-      1,
-    );
+    expect(slider('Wealth').value).toBe('0');
   });
 
   it('will not start without a point on any Goal', () => {
@@ -317,7 +325,7 @@ describe('Goals setup screen (AC-005)', () => {
     set('Happiness', 0);
     set('Education', 0);
     set('Career', 0);
-    set('Wealth', 10); // a target of $400 with the placeholder table
+    set('Wealth', 10); // a target of $400 at $40 per point
     await userEvent.click(screen.getByRole('button', { name: 'Start game' }));
 
     expect(

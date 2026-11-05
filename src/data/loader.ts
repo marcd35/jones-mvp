@@ -1,6 +1,6 @@
 import { ringCoordinates } from '@/lib/board';
 import { MAX_TIME } from '@/lib/constants';
-import type { DataPack, GoalId } from '@/types';
+import type { DataPack, GoalDef, GoalId } from '@/types';
 
 const GOAL_IDS: GoalId[] = ['wealth', 'happiness', 'education', 'career'];
 
@@ -68,6 +68,9 @@ export function validatePack(pack: DataPack): string[] {
     if (typeof job.careerId !== 'string' || job.careerId.trim().length === 0) {
       problems.push(`Job "${job.id}" needs a Career id.`);
     }
+    if (!Number.isInteger(job.rung) || job.rung < 1) {
+      problems.push(`Job "${job.id}" needs a whole rung of at least 1.`);
+    }
     if (
       typeof job.educationLabel !== 'string' ||
       job.educationLabel.trim().length === 0
@@ -112,6 +115,22 @@ export function validatePack(pack: DataPack): string[] {
       );
     }
   }
+  // Each Career numbers its jobs 1 (the entry job) to n, one job per rung.
+  const rungsByCareer = new Map<string, number[]>();
+  for (const job of pack.jobs) {
+    rungsByCareer.set(job.careerId, [
+      ...(rungsByCareer.get(job.careerId) ?? []),
+      job.rung,
+    ]);
+  }
+  for (const [careerId, rungs] of rungsByCareer) {
+    const sorted = [...rungs].sort((a, b) => a - b);
+    if (sorted.some((rung, index) => rung !== index + 1)) {
+      problems.push(
+        `Career "${careerId}" needs rungs numbered 1 to ${rungs.length}, one job each.`,
+      );
+    }
+  }
   const home = locations.find((l) => l.id === pack.homeLocationId);
   if (!home)
     problems.push(`Home Location "${pack.homeLocationId}" is not a Location.`);
@@ -124,8 +143,7 @@ export function validatePack(pack: DataPack): string[] {
     if (goalIds.has(goal.id))
       problems.push(`Goal "${goal.id}" is defined twice.`);
     goalIds.add(goal.id);
-    if (!(goal.perPoint > 0))
-      problems.push(`Goal "${goal.id}" needs a target per point above 0.`);
+    validateGoalTarget(goal, pack.goalPointsBudget, problems);
     if (!(goal.defaultPoints >= 0))
       problems.push(`Goal "${goal.id}" needs default points of at least 0.`);
     startPoints += goal.defaultPoints;
@@ -202,6 +220,46 @@ export function validatePack(pack: DataPack): string[] {
   }
 
   return problems;
+}
+
+function validateGoalTarget(goal: GoalDef, budget: number, problems: string[]) {
+  const what = `Goal "${goal.id}"`;
+  const rule = goal.target;
+  switch (rule?.kind) {
+    case 'per-point':
+      if (!(rule.amount > 0))
+        problems.push(`${what} needs a target per point above 0.`);
+      return;
+    case 'points-per-unit':
+      if (!(rule.pointsPerUnit > 0))
+        problems.push(`${what} needs points per target unit above 0.`);
+      return;
+    case 'bands': {
+      const { bands } = rule;
+      if (
+        bands.some(
+          (band, i) =>
+            i > 0 &&
+            !(
+              band.maxPoints > bands[i - 1].maxPoints &&
+              band.target > bands[i - 1].target
+            ),
+        )
+      ) {
+        problems.push(
+          `${what} needs target bands with rising points and targets.`,
+        );
+      }
+      if (!(bands.length > 0 && bands[bands.length - 1].maxPoints >= budget)) {
+        problems.push(
+          `${what} needs target bands up to the budget of ${budget}.`,
+        );
+      }
+      return;
+    }
+    default:
+      problems.push(`${what} needs a target table.`);
+  }
 }
 
 function validateEducation(pack: DataPack, problems: string[]) {

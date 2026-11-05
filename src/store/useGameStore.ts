@@ -64,7 +64,7 @@ export interface GameDeps {
   random?: Random;
 }
 
-const STORAGE_VERSION = 11;
+const STORAGE_VERSION = 12;
 const DEFAULT_SEED = 1;
 
 // Time is fractional (walks cost a share of a Week); keep it free of float dust.
@@ -99,6 +99,7 @@ const newPlayer = (pack: DataPack): Player => ({
   jobId: null,
   heldWage: null,
   careerExperience: {},
+  highestRung: 0,
   goals: defaultGoalPoints(pack),
   owedRent: 0,
   rentDueWeek: pack.rent.intervalWeeks,
@@ -164,7 +165,12 @@ const gameStoreCreator =
     const endStatus = (state: GameState): GameStatus => {
       const player = activePlayer(state);
       if (player.owedRent >= pack.rentOwedLimit) return 'lost';
-      return allGoalsMet(pack.goals, player) ? 'won' : 'playing';
+      return allGoalsMet(pack.goals, player, {
+        pack,
+        priceLevel: state.priceLevel,
+      })
+        ? 'won'
+        : 'playing';
     };
 
     // Ends the active Player's Week. The effects run in the fixed order of
@@ -254,7 +260,9 @@ const gameStoreCreator =
             : player.rentExtensionAskedWeek,
         rentPaidWeek: null,
       });
-      if (status === 'playing') status = endStatus({ ...state, players });
+      // Goods are valued at the coming Week's level, the one the game keeps.
+      if (status === 'playing')
+        status = endStatus({ ...state, players, priceLevel: level });
 
       return {
         // A game that ended keeps the Week it ended in (the Weeks played).
@@ -422,16 +430,20 @@ const gameStoreCreator =
           notify(dressed);
           return;
         }
-        set((s) => ({
-          players: patchActive(s, {
-            jobId,
-            heldWage: priceOf(job.wage),
-          }),
-          ...withEvent(
+        // A new rung can meet the Career Goal, so hiring settles the win.
+        set((s) =>
+          settle(
             s,
+            {
+              players: patchActive(s, {
+                jobId,
+                heldWage: priceOf(job.wage),
+                highestRung: Math.max(activePlayer(s).highestRung, job.rung),
+              }),
+            },
             `Hired as ${job.title} at ${locationOf(job.locationId)?.name ?? 'work'} for $${priceOf(job.wage)}/hr.`,
           ),
-        }));
+        );
       },
 
       work: () => {
@@ -1040,6 +1052,17 @@ export const useGameStore = create<GameStore>()(
           enrolledCourseId: p.enrolledCourseId ?? null,
           courseClassesCompleted: p.courseClassesCompleted ?? 0,
           completedCourseIds: p.completedCourseIds ?? [],
+        }));
+      }
+      // v12 keeps the highest job rung ever held (#44). A save knows only its
+      // current job, so that job's rung is the best record it has.
+      if (version < 12) {
+        state.players = (state.players as Player[]).map((p) => ({
+          ...p,
+          highestRung:
+            p.highestRung ??
+            gamePack.jobs.find((job) => job.id === p.jobId)?.rung ??
+            0,
         }));
       }
       return state as never;

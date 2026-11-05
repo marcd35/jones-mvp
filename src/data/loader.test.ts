@@ -131,6 +131,54 @@ describe('validatePack', () => {
     );
   });
 
+  it('rejects a rung that is not a whole number from 1', () => {
+    const job = defaultPack.jobs[0];
+    for (const rung of [0, 1.5, undefined as unknown as number]) {
+      expect(
+        validatePack({ ...defaultPack, jobs: [{ ...job, rung }] }),
+      ).toContain(`Job "${job.id}" needs a whole rung of at least 1.`);
+    }
+  });
+
+  it('rejects a Career whose rungs repeat or skip a number', () => {
+    const [first, second] = defaultPack.jobs.filter(
+      (job) => job.careerId === 'monolith-burger',
+    );
+    expect(
+      validatePack({
+        ...defaultPack,
+        jobs: [first, { ...second, rung: 1 }],
+      }),
+    ).toContain(
+      'Career "monolith-burger" needs rungs numbered 1 to 2, one job each.',
+    );
+    expect(
+      validatePack({
+        ...defaultPack,
+        jobs: [first, { ...second, rung: 3 }],
+      }),
+    ).toContain(
+      'Career "monolith-burger" needs rungs numbered 1 to 2, one job each.',
+    );
+  });
+
+  it('numbers each Career from its entry job in the approved reference order', () => {
+    const rungs = (careerId: string) =>
+      defaultPack.jobs
+        .filter((job) => job.careerId === careerId)
+        .map((job) => [job.id, job.rung]);
+    expect(rungs('monolith-burger')).toEqual([
+      ['cook', 1],
+      ['monolith-clerk', 2],
+      ['monolith-assistant-manager', 3],
+      ['monolith-manager', 4],
+    ]);
+    expect(rungs('factory').map(([, rung]) => rung)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ]);
+    expect(rungs('factory')[0][0]).toBe('factory-janitor');
+  });
+
   it('rejects a job with an unknown education path', () => {
     const job = defaultPack.jobs[0];
     const problems = validatePack({
@@ -240,22 +288,67 @@ describe('validatePack', () => {
       ).toContain('Goal "wealth" is defined twice.');
     });
 
-    it('rejects a Goal with no target per point or negative default points', () => {
+    it('rejects a Goal with no usable target table or negative default points', () => {
       const bad = goals.map((g, i) =>
-        i === 0 ? { ...g, perPoint: 0, defaultPoints: -1 } : g,
+        i === 0
+          ? {
+              ...g,
+              target: { kind: 'per-point' as const, amount: 0 },
+              defaultPoints: -1,
+            }
+          : i === 1
+            ? {
+                ...g,
+                target: { kind: 'points-per-unit' as const, pointsPerUnit: 0 },
+              }
+            : g,
       );
       const problems = validatePack({ ...defaultPack, goals: bad });
       expect(problems).toContain(
         'Goal "wealth" needs a target per point above 0.',
       );
       expect(problems).toContain(
+        'Goal "happiness" needs points per target unit above 0.',
+      );
+      expect(problems).toContain(
         'Goal "wealth" needs default points of at least 0.',
+      );
+    });
+
+    it('rejects target bands that are out of order or stop short of the budget', () => {
+      const bandsOf = (bands: { maxPoints: number; target: number }[]) =>
+        goals.map((g) =>
+          g.id === 'education'
+            ? { ...g, target: { kind: 'bands' as const, bands } }
+            : g,
+        );
+      expect(
+        validatePack({
+          ...defaultPack,
+          goals: bandsOf([
+            { maxPoints: 100, target: 2 },
+            { maxPoints: 100, target: 1 },
+          ]),
+        }),
+      ).toContain(
+        'Goal "education" needs target bands with rising points and targets.',
+      );
+      expect(
+        validatePack({
+          ...defaultPack,
+          goals: bandsOf([{ maxPoints: 100, target: 1 }]),
+        }),
+      ).toContain(
+        'Goal "education" needs target bands up to the budget of 200.',
+      );
+      expect(validatePack({ ...defaultPack, goals: bandsOf([]) })).toContain(
+        'Goal "education" needs target bands up to the budget of 200.',
       );
     });
 
     it('rejects default points over the budget', () => {
       expect(validatePack({ ...defaultPack, goalPointsBudget: 40 })).toContain(
-        'Default Goal points (50) are over the budget of 40.',
+        'Default Goal points (200) are over the budget of 40.',
       );
       expect(validatePack({ ...defaultPack, goalPointsBudget: 0 })).toContain(
         'Goal points budget must be above 0.',
